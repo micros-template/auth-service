@@ -1,0 +1,51 @@
+stages:
+  - setup
+  - lint
+  - build
+  - deploy
+
+go_mod_download:
+  stage: setup
+  image: golang:1.24-alpine3.22
+  script:
+    - apk add --no-cache git
+    - go env -w GOPRIVATE="10.1.20.130/*"
+    - go env -w GOINSECURE="10.1.20.130/*"
+    - git config --global url."http://$DROPPING_READ_TOKEN@10.1.20.130/".insteadOf "https://10.1.20.130/"
+    - go mod download
+
+staticcheck:
+  stage: lint
+  image: golang:1.24-alpine3.22
+  script:
+    - apk add --no-cache git
+    - go env -w GOPRIVATE="10.1.20.130/*"
+    - go env -w GOINSECURE="10.1.20.130/*"
+    - git config --global url."http://$DROPPING_READ_TOKEN@10.1.20.130/".insteadOf "https://10.1.20.130/"
+    - go install honnef.co/go/tools/cmd/staticcheck@latest
+    - staticcheck ./...
+
+# Test is still not implemented
+# go_test:
+#   stage: test
+#   image: golang:1.24
+#   script:
+#     - go test ./test/...
+
+
+image_build:
+  stage: build
+  image: golang:1.24-alpine3.22
+  services:
+    - name: docker:dind
+      command: ["--insecure-registry=10.1.20.130:5001"] 
+  variables:
+    DOCKER_DRIVER: overlay2
+  script:
+    - apk add --no-cache docker
+    - apk add --no-cache git
+    - go env -w GOPRIVATE="10.1.20.130/*"
+    - go env -w GOINSECURE="10.1.20.130/*"
+    - git config --global url."http://$DROPPING_READ_TOKEN@10.1.20.130/".insteadOf "https://10.1.20.130/"
+    - chmod +x ./bin/build.sh
+    - ./bin/build.sh
