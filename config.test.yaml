@@ -73,10 +73,10 @@ jwt:
   secret_key: "jwt_secret_test"
 
 container:
-  auth_service_version: "v0.0.1"
-  file_service_version: "v0.0.1"
-  user_service_version: "v0.0.1"
-  notification_service_version: "v0.0.1"
+  auth_service_version: "latest"
+  file_service_version: "latest"
+  user_service_version: "latest"
+  notification_service_version: "latest"
   nats_version: "2.11.6"
   minio_version: "RELEASE.2025-05-24T17-08-30Z-cpuv1"
   mailhog_version: "v1.0.1"
