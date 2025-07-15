@@ -28,7 +28,7 @@ replace (
 	github.com/dropboks/event-bus-client => 10.1.20.130/dropping/event-bus-client v0.0.0-20250714041347-ca084f97e210
 	github.com/dropboks/proto-file => 10.1.20.130/dropping/proto-file v0.0.0-20250714044208-bb76fb12882b
 	github.com/dropboks/proto-user => 10.1.20.130/dropping/proto-user v0.0.0-20250714041933-087deb5804ce
-	github.com/dropboks/sharedlib => 10.1.20.130/dropping/sharedlib v0.0.0-20250714040959-b4c973583218
+	github.com/dropboks/sharedlib => 10.1.20.130/dropping/sharedlib v0.0.0-20250715071332-d012233aa476
 )
 
 require (
@@ -72,7 +72,7 @@ require (
 	github.com/jackc/puddle/v2 v2.2.2 // indirect
 	github.com/json-iterator/go v1.1.12 // indirect
 	github.com/klauspost/compress v1.18.0 // indirect
-	github.com/klauspost/cpuid/v2 v2.2.11 // indirect
+	github.com/klauspost/cpuid/v2 v2.3.0 // indirect
 	github.com/lann/builder v0.0.0-20180802200727-47ae307949d0 // indirect
 	github.com/lann/ps v0.0.0-20150810152359-62de8c46ede0 // indirect
 	github.com/leodido/go-urn v1.4.0 // indirect

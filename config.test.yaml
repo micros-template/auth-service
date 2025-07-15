@@ -1,5 +1,5 @@
 database:
-  host: "auth_db"
+  host: "test_auth_db"
   user: "user_test"
   password: "password_test"
   port: "5432"
@@ -8,24 +8,24 @@ database:
 
 app:
   name: "test_app_name"
-  url: "http://localhost:8081"
+  url: "http://localhost:9090/api/v1"
   http:
     port: 8081
   grpc:
     service:
-      user_service: user_service:50051
-      file_service: file_service:50051
-  verification_url: "verify-email?"
-  changepassword_url: "change-password?"
+      user_service: test_user_service:50051
+      file_service: test_file_service:50051
+  verification_url: "auth/verify-email?"
+  changepassword_url: "auth/change-password?"
 
 redis:
-  address: "redis"
+  address: "test_redis"
   port: "6379"
   client_name: "auth_service_test"
   password: "password_test"
 
 minio:
-  host: "minio"
+  host: "test_minio"
   port: "9000"
   credential:
     user: "user_test"
@@ -33,7 +33,7 @@ minio:
 
 nats:
   protocol: "nats"
-  address: "nats"
+  address: "test_nats"
   port: "4221"
   credential:
     user: "user_test"
@@ -77,6 +77,7 @@ container:
   file_service_version: "latest"
   user_service_version: "latest"
   notification_service_version: "latest"
+  gateway_version: "1.28.0-alpine-slim"
   nats_version: "2.11.6"
   minio_version: "RELEASE.2025-05-24T17-08-30Z-cpuv1"
   mailhog_version: "v1.0.1"
@@ -86,3 +87,5 @@ container:
 script:
   nats_server: "../mocks/nats/nats-server.conf"
   init_sql: "../mocks/db/init-db.sql"
+  nginx: "../mocks/gateway/nginx.conf"
+  grpc_error: "../mocks/gateway/errors.grpc_conf"
