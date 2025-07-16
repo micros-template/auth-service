@@ -25,6 +25,7 @@ type ResendVerificationEmailITSuite struct {
 	ctx context.Context
 
 	network                      *testcontainers.DockerNetwork
+	gatewayContainer             *_helper.GatewayContainer
 	userPgContainer              *_helper.PostgresContainer
 	authPgContainer              *_helper.PostgresContainer
 	redisContainer               *_helper.RedisContainer
@@ -52,14 +53,14 @@ func (r *ResendVerificationEmailITSuite) SetupSuite() {
 	r.network = _helper.StartNetwork(r.ctx)
 
 	// spawn user db
-	userPgContainer, err := _helper.StartPostgresContainer(r.ctx, r.network.Name, "user_db", viper.GetString("container.postgresql_version"))
+	userPgContainer, err := _helper.StartPostgresContainer(r.ctx, r.network.Name, "test_user_db", viper.GetString("container.postgresql_version"))
 	if err != nil {
 		log.Fatalf("failed starting postgres container: %s", err)
 	}
 	r.userPgContainer = userPgContainer
 
 	// spawn auth db
-	authPgContainer, err := _helper.StartPostgresContainer(r.ctx, r.network.Name, "auth_db", viper.GetString("container.postgresql_version"))
+	authPgContainer, err := _helper.StartPostgresContainer(r.ctx, r.network.Name, "test_auth_db", viper.GetString("container.postgresql_version"))
 	if err != nil {
 		log.Fatalf("failed starting postgres container: %s", err)
 	}
@@ -119,6 +120,14 @@ func (r *ResendVerificationEmailITSuite) SetupSuite() {
 		log.Fatalf("failed starting mailhog container: %s", err)
 	}
 	r.mailHogContainer = mailContainer
+	gatewayContainer, err := _helper.StartGatewayContainer(r.ctx, r.network.Name, viper.GetString("container.gateway_version"))
+	if err != nil {
+		log.Fatalf("failed starting gateway container: %s", err)
+	}
+	r.gatewayContainer = gatewayContainer
+	time.Sleep(time.Second)
+
+
 }
 func (r *ResendVerificationEmailITSuite) TearDownSuite() {
 	if err := r.userPgContainer.Terminate(r.ctx); err != nil {
@@ -151,7 +160,9 @@ func (r *ResendVerificationEmailITSuite) TearDownSuite() {
 	if err := r.mailHogContainer.Terminate(r.ctx); err != nil {
 		log.Fatalf("error terminating mailhog container: %s", err)
 	}
-
+	if err := r.gatewayContainer.Terminate(r.ctx); err != nil {
+		log.Fatalf("error terminating gateway container: %s", err)
+	}
 	log.Println("Tear Down integration test suite for ResendVerificationEmailITSuite")
 }
 func TestResendVerificationEmailITSuite(t *testing.T) {
@@ -185,7 +196,7 @@ func (r *ResendVerificationEmailITSuite) TestResendVerificationEmailIT_Success()
 	}
 	_ = json.NewEncoder(reqBody).Encode(encoder)
 
-	req, err := http.NewRequest(http.MethodPost, "http://localhost:8081/resend-verification-email", reqBody)
+	req, err := http.NewRequest(http.MethodPost, "http://localhost:9090/api/v1/auth/resend-verification-email", reqBody)
 	r.NoError(err)
 
 	client = http.Client{}
@@ -199,7 +210,7 @@ func (r *ResendVerificationEmailITSuite) TestResendVerificationEmailIT_Success()
 	r.Contains(string(byteBody), "Check your email for verification")
 
 	// check email
-	regex := `http://localhost:8081/verify-email\?userid=[^&]+&token=[^"']+`
+	regex := `http://localhost:9090/api/v1/auth/verify-email\?userid=[^&]+&token=[^"']+`
 	link := helper.RetrieveDataFromEmail(email, regex, "mail", r.T())
 	r.NotEmpty(r.T(), link)
 }
@@ -212,7 +223,7 @@ func (r *ResendVerificationEmailITSuite) TestResendVerificationEmailIT_MissingBo
 	encoder := gin.H{}
 	_ = json.NewEncoder(reqBody).Encode(encoder)
 
-	req, err := http.NewRequest(http.MethodPost, "http://localhost:8081/resend-verification-email", reqBody)
+	req, err := http.NewRequest(http.MethodPost, "http://localhost:9090/api/v1/auth/resend-verification-email", reqBody)
 	r.NoError(err)
 
 	client := http.Client{}
@@ -249,7 +260,7 @@ func (r *ResendVerificationEmailITSuite) TestResendVerificationEmailIT_AlreadyVe
 
 	// verify email
 
-	regex := `http://localhost:8081/verify-email\?userid=[^&]+&token=[^"']+`
+	regex := `http://localhost:9090/api/v1/auth/verify-email\?userid=[^&]+&token=[^"']+`
 	link := helper.RetrieveDataFromEmail(email, regex, "mail", r.T())
 	r.NotEmpty(link)
 
@@ -275,7 +286,7 @@ func (r *ResendVerificationEmailITSuite) TestResendVerificationEmailIT_AlreadyVe
 	}
 	_ = json.NewEncoder(reqBody).Encode(encoder)
 
-	req, err := http.NewRequest(http.MethodPost, "http://localhost:8081/resend-verification-email", reqBody)
+	req, err := http.NewRequest(http.MethodPost, "http://localhost:9090/api/v1/auth/resend-verification-email", reqBody)
 	r.NoError(err)
 
 	client = http.Client{}
@@ -289,7 +300,7 @@ func (r *ResendVerificationEmailITSuite) TestResendVerificationEmailIT_AlreadyVe
 	r.Contains(string(byteBody), "user is already verified")
 
 	// check email
-	regex = `http://localhost:8081/verify-email\?userid=[^&]+&token=[^"']+`
+	regex = `http://localhost:9090/api/v1/auth/verify-email\?userid=[^&]+&token=[^"']+`
 	link = helper.RetrieveDataFromEmail(email, regex, "mail", r.T())
 	r.NotEmpty(r.T(), link)
 }
@@ -304,7 +315,7 @@ func (r *ResendVerificationEmailITSuite) TestResendVerificationEmailIT_UserNotFo
 	}
 	_ = json.NewEncoder(reqBody).Encode(encoder)
 
-	req, err := http.NewRequest(http.MethodPost, "http://localhost:8081/resend-verification-email", reqBody)
+	req, err := http.NewRequest(http.MethodPost, "http://localhost:9090/api/v1/auth/resend-verification-email", reqBody)
 	r.NoError(err)
 
 	client := http.Client{}

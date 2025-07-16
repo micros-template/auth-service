@@ -24,6 +24,7 @@ type RegisterITSuite struct {
 	ctx context.Context
 
 	network              *testcontainers.DockerNetwork
+	gatewayContainer     *_helper.GatewayContainer
 	userPgContainer      *_helper.PostgresContainer
 	authPgContainer      *_helper.PostgresContainer
 	redisContainer       *_helper.RedisContainer
@@ -49,14 +50,14 @@ func (r *RegisterITSuite) SetupSuite() {
 	r.network = _helper.StartNetwork(r.ctx)
 
 	// spawn user db
-	userPgContainer, err := _helper.StartPostgresContainer(r.ctx, r.network.Name, "user_db", viper.GetString("container.postgresql_version"))
+	userPgContainer, err := _helper.StartPostgresContainer(r.ctx, r.network.Name, "test_user_db", viper.GetString("container.postgresql_version"))
 	if err != nil {
 		log.Fatalf("failed starting postgres container: %s", err)
 	}
 	r.userPgContainer = userPgContainer
 
 	// spawn auth db
-	authPgContainer, err := _helper.StartPostgresContainer(r.ctx, r.network.Name, "auth_db", viper.GetString("container.postgresql_version"))
+	authPgContainer, err := _helper.StartPostgresContainer(r.ctx, r.network.Name, "test_auth_db", viper.GetString("container.postgresql_version"))
 	if err != nil {
 		log.Fatalf("failed starting postgres container: %s", err)
 	}
@@ -103,6 +104,14 @@ func (r *RegisterITSuite) SetupSuite() {
 		log.Fatalf("failed starting user service container: %s", err)
 	}
 	r.userServiceContainer = uContainer
+
+	gatewayContainer, err := _helper.StartGatewayContainer(r.ctx, r.network.Name, viper.GetString("container.gateway_version"))
+	if err != nil {
+		log.Fatalf("failed starting gateway container: %s", err)
+	}
+	r.gatewayContainer = gatewayContainer
+	time.Sleep(time.Second)
+
 }
 func (r *RegisterITSuite) TearDownSuite() {
 	if err := r.userPgContainer.Terminate(r.ctx); err != nil {
@@ -129,7 +138,9 @@ func (r *RegisterITSuite) TearDownSuite() {
 	if err := r.fileServiceContainer.Terminate(r.ctx); err != nil {
 		log.Fatalf("error terminating file service container: %s", err)
 	}
-
+	if err := r.gatewayContainer.Terminate(r.ctx); err != nil {
+		log.Fatalf("error terminating gateway container: %s", err)
+	}
 	log.Println("Tear Down integration test suite for RegisterITSuite")
 }
 func TestRegisterITSuite(t *testing.T) {
@@ -161,7 +172,7 @@ func (r *RegisterITSuite) TestRegisterIT_MissingBody() {
 
 	formWriter.Close()
 
-	request, err := http.NewRequest(http.MethodPost, "http://localhost:8081/register", reqBody)
+	request, err := http.NewRequest(http.MethodPost, "http://localhost:9090/api/v1/auth/register", reqBody)
 	request.Header.Set("Content-Type", formWriter.FormDataContentType())
 	r.NoError(err)
 
@@ -225,7 +236,7 @@ func (r *RegisterITSuite) TestRegisterIT_WrongExtension() {
 	}
 	formWriter.Close()
 
-	request, err := http.NewRequest(http.MethodPost, "http://localhost:8081/register", reqBody)
+	request, err := http.NewRequest(http.MethodPost, "http://localhost:9090/api/v1/auth/register", reqBody)
 	request.Header.Set("Content-Type", formWriter.FormDataContentType())
 	r.NoError(err)
 
@@ -258,7 +269,7 @@ func (r *RegisterITSuite) TestRegisterIT_LimitSizeExceeded() {
 	}
 	formWriter.Close()
 
-	request, err := http.NewRequest(http.MethodPost, "http://localhost:8081/register", reqBody)
+	request, err := http.NewRequest(http.MethodPost, "http://localhost:9090/api/v1/auth/register", reqBody)
 	request.Header.Set("Content-Type", formWriter.FormDataContentType())
 	r.NoError(err)
 
@@ -291,7 +302,7 @@ func (r *RegisterITSuite) TestRegisterIT_PasswordAndConfirmPasswordDoesntMatch()
 	}
 	formWriter.Close()
 
-	request, err := http.NewRequest(http.MethodPost, "http://localhost:8081/register", reqBody)
+	request, err := http.NewRequest(http.MethodPost, "http://localhost:9090/api/v1/auth/register", reqBody)
 	request.Header.Set("Content-Type", formWriter.FormDataContentType())
 	r.NoError(err)
 

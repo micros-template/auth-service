@@ -23,6 +23,7 @@ type LogoutITSuite struct {
 	ctx context.Context
 
 	network                      *testcontainers.DockerNetwork
+	gatewayContainer             *_helper.GatewayContainer
 	userPgContainer              *_helper.PostgresContainer
 	authPgContainer              *_helper.PostgresContainer
 	redisContainer               *_helper.RedisContainer
@@ -51,14 +52,14 @@ func (l *LogoutITSuite) SetupSuite() {
 	l.network = _helper.StartNetwork(l.ctx)
 
 	// spawn user db
-	userPgContainer, err := _helper.StartPostgresContainer(l.ctx, l.network.Name, "user_db", viper.GetString("container.postgresql_version"))
+	userPgContainer, err := _helper.StartPostgresContainer(l.ctx, l.network.Name, "test_user_db", viper.GetString("container.postgresql_version"))
 	if err != nil {
 		log.Fatalf("failed starting postgres container: %s", err)
 	}
 	l.userPgContainer = userPgContainer
 
 	// spawn auth db
-	authPgContainer, err := _helper.StartPostgresContainer(l.ctx, l.network.Name, "auth_db", viper.GetString("container.postgresql_version"))
+	authPgContainer, err := _helper.StartPostgresContainer(l.ctx, l.network.Name, "test_auth_db", viper.GetString("container.postgresql_version"))
 	if err != nil {
 		log.Fatalf("failed starting postgres container: %s", err)
 	}
@@ -119,6 +120,14 @@ func (l *LogoutITSuite) SetupSuite() {
 	}
 	l.mailHogContainer = mailContainer
 
+	gatewayContainer, err := _helper.StartGatewayContainer(l.ctx, l.network.Name, viper.GetString("container.gateway_version"))
+	if err != nil {
+		log.Fatalf("failed starting gateway container: %s", err)
+	}
+	l.gatewayContainer = gatewayContainer
+	time.Sleep(time.Second)
+
+
 }
 func (l *LogoutITSuite) TearDownSuite() {
 	if err := l.userPgContainer.Terminate(l.ctx); err != nil {
@@ -151,7 +160,9 @@ func (l *LogoutITSuite) TearDownSuite() {
 	if err := l.mailHogContainer.Terminate(l.ctx); err != nil {
 		log.Fatalf("error terminating mailhog container: %s", err)
 	}
-
+	if err := l.gatewayContainer.Terminate(l.ctx); err != nil {
+		log.Fatalf("error terminating gateway container: %s", err)
+	}
 	log.Println("Tear Down integration test suite for LogoutITSuite")
 }
 func TestLogoutITSuite(t *testing.T) {
@@ -177,7 +188,7 @@ func (l *LogoutITSuite) TestLogoutIT_Success() {
 	time.Sleep(time.Second) //give a time for auth_db update the user
 
 	// verify email
-	regex := `http://localhost:8081/verify-email\?userid=[^&]+&token=[^"']+`
+	regex := `http://localhost:9090/api/v1/auth/verify-email\?userid=[^&]+&token=[^"']+`
 	link := helper.RetrieveDataFromEmail(email, regex, "mail", l.T())
 
 	verifyRequest, err := http.NewRequest(http.MethodGet, link, nil)
@@ -214,7 +225,7 @@ func (l *LogoutITSuite) TestLogoutIT_Success() {
 	jwt, ok := respData["data"].(string)
 	l.True(ok, "expected jwt token in data field")
 
-	verifyReq, err := http.NewRequest(http.MethodPost, "http://localhost:8081/logout", nil)
+	verifyReq, err := http.NewRequest(http.MethodPost, "http://localhost:9090/api/v1/auth/logout", nil)
 	l.NoError(err)
 	verifyReq.Header.Set("Authorization", "Bearer "+jwt)
 
@@ -227,7 +238,7 @@ func (l *LogoutITSuite) TestLogoutIT_Success() {
 
 func (l *LogoutITSuite) TestLogoutIT_MissingToken() {
 
-	verifyReq, err := http.NewRequest(http.MethodPost, "http://localhost:8081/logout", nil)
+	verifyReq, err := http.NewRequest(http.MethodPost, "http://localhost:9090/api/v1/auth/logout", nil)
 	l.NoError(err)
 
 	client := http.Client{}
@@ -243,7 +254,7 @@ func (l *LogoutITSuite) TestLogoutIT_MissingToken() {
 
 func (l *LogoutITSuite) TestLogoutIT_InvalidFormat() {
 
-	verifyReq, err := http.NewRequest(http.MethodPost, "http://localhost:8081/logout", nil)
+	verifyReq, err := http.NewRequest(http.MethodPost, "http://localhost:9090/api/v1/auth/logout", nil)
 	verifyReq.Header.Set("Authorization", "Bearer")
 	l.NoError(err)
 
@@ -261,7 +272,7 @@ func (l *LogoutITSuite) TestLogoutIT_InvalidFormat() {
 func (l *LogoutITSuite) TestLogoutIT_InvalidToken() {
 	jwt := "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoidXNlci1pZC0xMjMiLCJpYXQiOjE3NTEzNjEzOTJ9.CwkzkHgPYAxd6TXG4_ooMFczGvjn3Qr2_7T6W6YCDgI"
 
-	verifyReq, err := http.NewRequest(http.MethodPost, "http://localhost:8081/logout", nil)
+	verifyReq, err := http.NewRequest(http.MethodPost, "http://localhost:9090/api/v1/auth/logout", nil)
 	verifyReq.Header.Set("Authorization", "Bearer "+jwt)
 	l.NoError(err)
 

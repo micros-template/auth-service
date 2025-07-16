@@ -23,6 +23,7 @@ type VerifyITSuite struct {
 	ctx context.Context
 
 	network                      *testcontainers.DockerNetwork
+	gatewayContainer             *_helper.GatewayContainer
 	userPgContainer              *_helper.PostgresContainer
 	authPgContainer              *_helper.PostgresContainer
 	redisContainer               *_helper.RedisContainer
@@ -50,14 +51,14 @@ func (v *VerifyITSuite) SetupSuite() {
 	v.network = _helper.StartNetwork(v.ctx)
 
 	// spawn user db
-	userPgContainer, err := _helper.StartPostgresContainer(v.ctx, v.network.Name, "user_db", viper.GetString("container.postgresql_version"))
+	userPgContainer, err := _helper.StartPostgresContainer(v.ctx, v.network.Name, "test_user_db", viper.GetString("container.postgresql_version"))
 	if err != nil {
 		log.Fatalf("failed starting postgres container: %s", err)
 	}
 	v.userPgContainer = userPgContainer
 
 	// spawn auth db
-	authPgContainer, err := _helper.StartPostgresContainer(v.ctx, v.network.Name, "auth_db", viper.GetString("container.postgresql_version"))
+	authPgContainer, err := _helper.StartPostgresContainer(v.ctx, v.network.Name, "test_auth_db", viper.GetString("container.postgresql_version"))
 	if err != nil {
 		log.Fatalf("failed starting postgres container: %s", err)
 	}
@@ -117,6 +118,12 @@ func (v *VerifyITSuite) SetupSuite() {
 	}
 	v.mailHogContainer = mailContainer
 
+	gatewayContainer, err := _helper.StartGatewayContainer(v.ctx, v.network.Name, viper.GetString("container.gateway_version"))
+	if err != nil {
+		log.Fatalf("failed starting gateway container: %s", err)
+	}
+	v.gatewayContainer = gatewayContainer
+	time.Sleep(time.Second)
 }
 func (v *VerifyITSuite) TearDownSuite() {
 	if err := v.userPgContainer.Terminate(v.ctx); err != nil {
@@ -149,7 +156,9 @@ func (v *VerifyITSuite) TearDownSuite() {
 	if err := v.mailHogContainer.Terminate(v.ctx); err != nil {
 		log.Fatalf("error terminating mailhog container: %s", err)
 	}
-
+	if err := v.gatewayContainer.Terminate(v.ctx); err != nil {
+		log.Fatalf("error terminating gateway container: %s", err)
+	}
 	log.Println("Tear Down integration test suite for VerifyITSuite")
 }
 func TestVerifyITSuite(t *testing.T) {
@@ -175,7 +184,7 @@ func (v *VerifyITSuite) TestVerifyIT_Success() {
 	time.Sleep(time.Second) //give a time for auth_db update the user
 
 	// verify email
-	regex := `http://localhost:8081/verify-email\?userid=[^&]+&token=[^"']+`
+	regex := `http://localhost:9090/api/v1/auth/verify-email\?userid=[^&]+&token=[^"']+`
 	link := helper.RetrieveDataFromEmail(email, regex, "mail", v.T())
 
 	verifyRequest, err := http.NewRequest(http.MethodGet, link, nil)
@@ -212,7 +221,7 @@ func (v *VerifyITSuite) TestVerifyIT_Success() {
 	jwt, ok := respData["data"].(string)
 	v.True(ok, "expected jwt token in data field")
 
-	verifyReq, err := http.NewRequest(http.MethodPost, "http://localhost:8081/verify", nil)
+	verifyReq, err := http.NewRequest(http.MethodPost, "http://localhost:9090/api/v1/auth/verify", nil)
 	v.NoError(err)
 	verifyReq.Header.Set("Authorization", "Bearer "+jwt)
 
@@ -225,7 +234,7 @@ func (v *VerifyITSuite) TestVerifyIT_Success() {
 
 func (v *VerifyITSuite) TestVerifyIT_MissingToken() {
 
-	verifyReq, err := http.NewRequest(http.MethodPost, "http://localhost:8081/verify", nil)
+	verifyReq, err := http.NewRequest(http.MethodPost, "http://localhost:9090/api/v1/auth/verify", nil)
 	v.NoError(err)
 
 	client := http.Client{}
@@ -241,7 +250,7 @@ func (v *VerifyITSuite) TestVerifyIT_MissingToken() {
 
 func (v *VerifyITSuite) TestVerifyIT_InvalidFormat() {
 
-	verifyReq, err := http.NewRequest(http.MethodPost, "http://localhost:8081/verify", nil)
+	verifyReq, err := http.NewRequest(http.MethodPost, "http://localhost:9090/api/v1/auth/verify", nil)
 	verifyReq.Header.Set("Authorization", "Bearer")
 	v.NoError(err)
 
@@ -259,7 +268,7 @@ func (v *VerifyITSuite) TestVerifyIT_InvalidFormat() {
 func (v *VerifyITSuite) TestVerifyIT_InvalidToken() {
 	jwt := "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoidXNlci1pZC0xMjMiLCJpYXQiOjE3NTEzNjEzOTJ9.CwkzkHgPYAxd6TXG4_ooMFczGvjn3Qr2_7T6W6YCDgI"
 
-	verifyReq, err := http.NewRequest(http.MethodPost, "http://localhost:8081/verify", nil)
+	verifyReq, err := http.NewRequest(http.MethodPost, "http://localhost:9090/api/v1/auth/verify", nil)
 	verifyReq.Header.Set("Authorization", "Bearer "+jwt)
 	v.NoError(err)
 

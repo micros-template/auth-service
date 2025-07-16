@@ -16,7 +16,6 @@ import (
 
 	"10.1.20.130/dropping/auth-service/test/helper"
 	_helper "github.com/dropboks/sharedlib/test/helper"
-	"github.com/dropboks/sharedlib/utils"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/suite"
 	"github.com/testcontainers/testcontainers-go"
@@ -27,6 +26,7 @@ type ResendVerificationOTPITSuite struct {
 	ctx context.Context
 
 	network                      *testcontainers.DockerNetwork
+	gatewayContainer             *_helper.GatewayContainer
 	userPgContainer              *_helper.PostgresContainer
 	authPgContainer              *_helper.PostgresContainer
 	redisContainer               *_helper.RedisContainer
@@ -54,14 +54,14 @@ func (r *ResendVerificationOTPITSuite) SetupSuite() {
 	r.network = _helper.StartNetwork(r.ctx)
 
 	// spawn user db
-	userPgContainer, err := _helper.StartPostgresContainer(r.ctx, r.network.Name, "user_db", viper.GetString("container.postgresql_version"))
+	userPgContainer, err := _helper.StartPostgresContainer(r.ctx, r.network.Name, "test_user_db", viper.GetString("container.postgresql_version"))
 	if err != nil {
 		log.Fatalf("failed starting postgres container: %s", err)
 	}
 	r.userPgContainer = userPgContainer
 
 	// spawn auth db
-	authPgContainer, err := _helper.StartPostgresContainer(r.ctx, r.network.Name, "auth_db", viper.GetString("container.postgresql_version"))
+	authPgContainer, err := _helper.StartPostgresContainer(r.ctx, r.network.Name, "test_auth_db", viper.GetString("container.postgresql_version"))
 	if err != nil {
 		log.Fatalf("failed starting postgres container: %s", err)
 	}
@@ -122,6 +122,13 @@ func (r *ResendVerificationOTPITSuite) SetupSuite() {
 	}
 	r.mailHogContainer = mailContainer
 
+	gatewayContainer, err := _helper.StartGatewayContainer(r.ctx, r.network.Name, viper.GetString("container.gateway_version"))
+	if err != nil {
+		log.Fatalf("failed starting gateway container: %s", err)
+	}
+	r.gatewayContainer = gatewayContainer
+	time.Sleep(time.Second)
+
 }
 
 func (r *ResendVerificationOTPITSuite) TearDownSuite() {
@@ -155,7 +162,9 @@ func (r *ResendVerificationOTPITSuite) TearDownSuite() {
 	if err := r.mailHogContainer.Terminate(r.ctx); err != nil {
 		log.Fatalf("error terminating mailhog container: %s", err)
 	}
-
+	if err := r.gatewayContainer.Terminate(r.ctx); err != nil {
+		log.Fatalf("error terminating gateway container: %s", err)
+	}
 	log.Println("Tear Down integration test suite for ResendVerificationOTPITSuite")
 }
 func TestResentVerificationOTPITSuite(t *testing.T) {
@@ -181,7 +190,7 @@ func (r *ResendVerificationOTPITSuite) TestResendVerificationOTPIT_Success() {
 	time.Sleep(time.Second) //give a time for auth_db update the user
 
 	// verify email
-	regex := `http://localhost:8081/verify-email\?userid=[^&]+&token=[^"']+`
+	regex := `http://localhost:9090/api/v1/auth/verify-email\?userid=[^&]+&token=[^"']+`
 	link := helper.RetrieveDataFromEmail(email, regex, "mail", r.T())
 
 	verifyRequest, err := http.NewRequest(http.MethodGet, link, nil)
@@ -218,24 +227,6 @@ func (r *ResendVerificationOTPITSuite) TestResendVerificationOTPIT_Success() {
 	jwt, ok := respData["data"].(string)
 	r.True(ok, "expected jwt token in data field")
 
-	// verify token
-	verifyReq, err := http.NewRequest(http.MethodPost, "http://localhost:8081/verify", nil)
-	r.NoError(err)
-	verifyReq.Header.Set("Authorization", "Bearer "+jwt)
-
-	verifyResp, err := client.Do(verifyReq)
-	r.NoError(err)
-	defer verifyResp.Body.Close()
-
-	r.Equal(http.StatusNoContent, verifyResp.StatusCode)
-	userDataHeader := verifyResp.Header.Get("User-Data")
-	r.NotEmpty(userDataHeader, "User-Data header should not be empty")
-
-	var ud utils.UserData
-	err = json.Unmarshal([]byte(userDataHeader), &ud)
-	r.NoError(err)
-	r.NotEmpty(ud.UserId, "user_id should not be empty")
-
 	// updateuser enable 2FA
 	reqBody := &bytes.Buffer{}
 
@@ -244,9 +235,9 @@ func (r *ResendVerificationOTPITSuite) TestResendVerificationOTPIT_Success() {
 	_ = formWriter.WriteField("two_factor_enabled", "true")
 	formWriter.Close()
 
-	request, err = http.NewRequest(http.MethodPatch, "http://localhost:8082/", reqBody)
+	request, err = http.NewRequest(http.MethodPatch, "http://localhost:9090/api/v1/user/", reqBody)
 	request.Header.Set("Content-Type", formWriter.FormDataContentType())
-	request.Header.Set("User-Data", userDataHeader)
+	request.Header.Set("Authorization", "Bearer "+jwt)
 
 	r.NoError(err)
 
@@ -270,7 +261,7 @@ func (r *ResendVerificationOTPITSuite) TestResendVerificationOTPIT_Success() {
 	}
 	_ = json.NewEncoder(reqBody).Encode(encoder)
 
-	req, err := http.NewRequest(http.MethodPost, "http://localhost:8081/resend-verification-otp", reqBody)
+	req, err := http.NewRequest(http.MethodPost, "http://localhost:9090/api/v1/auth/resend-verification-otp", reqBody)
 	r.NoError(err)
 
 	client = http.Client{}
@@ -294,7 +285,7 @@ func (r *ResendVerificationOTPITSuite) TestResendVerificationOTPIT_MissingBody()
 	encoder := gin.H{}
 	_ = json.NewEncoder(reqBody).Encode(encoder)
 
-	req, err := http.NewRequest(http.MethodPost, "http://localhost:8081/resend-verification-otp", reqBody)
+	req, err := http.NewRequest(http.MethodPost, "http://localhost:9090/api/v1/auth/resend-verification-otp", reqBody)
 	r.NoError(err)
 
 	client := http.Client{}
@@ -334,7 +325,7 @@ func (r *ResendVerificationOTPITSuite) TestResendVerificationOTPIT_UserNotVerifi
 	}
 	_ = json.NewEncoder(reqBody).Encode(encoder)
 
-	req, err := http.NewRequest(http.MethodPost, "http://localhost:8081/resend-verification-otp", reqBody)
+	req, err := http.NewRequest(http.MethodPost, "http://localhost:9090/api/v1/auth/resend-verification-otp", reqBody)
 	r.NoError(err)
 
 	client = http.Client{}
@@ -367,7 +358,7 @@ func (r *ResendVerificationOTPITSuite) TestResendVerificationOTPIT_2FANotEnabled
 	time.Sleep(time.Second) //give a time for auth_db update the user
 
 	// verify email
-	regex := `http://localhost:8081/verify-email\?userid=[^&]+&token=[^"']+`
+	regex := `http://localhost:9090/api/v1/auth/verify-email\?userid=[^&]+&token=[^"']+`
 	link := helper.RetrieveDataFromEmail(email, regex, "mail", r.T())
 
 	verifyRequest, err := http.NewRequest(http.MethodGet, link, nil)
@@ -392,7 +383,7 @@ func (r *ResendVerificationOTPITSuite) TestResendVerificationOTPIT_2FANotEnabled
 	}
 	_ = json.NewEncoder(reqBody).Encode(encoder)
 
-	req, err := http.NewRequest(http.MethodPost, "http://localhost:8081/resend-verification-otp", reqBody)
+	req, err := http.NewRequest(http.MethodPost, "http://localhost:9090/api/v1/auth/resend-verification-otp", reqBody)
 	r.NoError(err)
 
 	client = http.Client{}
@@ -415,7 +406,7 @@ func (r *ResendVerificationOTPITSuite) TestResendVerificationOTPIT_UserNotFound(
 	}
 	_ = json.NewEncoder(reqBody).Encode(encoder)
 
-	req, err := http.NewRequest(http.MethodPost, "http://localhost:8081/resend-verification-otp", reqBody)
+	req, err := http.NewRequest(http.MethodPost, "http://localhost:9090/api/v1/auth/resend-verification-otp", reqBody)
 	r.NoError(err)
 
 	client := http.Client{}

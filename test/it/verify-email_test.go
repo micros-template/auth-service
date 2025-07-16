@@ -16,7 +16,6 @@ import (
 
 	"10.1.20.130/dropping/auth-service/test/helper"
 	_helper "github.com/dropboks/sharedlib/test/helper"
-	"github.com/dropboks/sharedlib/utils"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/suite"
 	"github.com/testcontainers/testcontainers-go"
@@ -27,6 +26,7 @@ type VerifyEmailITSuite struct {
 	ctx context.Context
 
 	network                      *testcontainers.DockerNetwork
+	gatewayContainer             *_helper.GatewayContainer
 	userPgContainer              *_helper.PostgresContainer
 	authPgContainer              *_helper.PostgresContainer
 	redisContainer               *_helper.RedisContainer
@@ -54,14 +54,14 @@ func (v *VerifyEmailITSuite) SetupSuite() {
 	v.network = _helper.StartNetwork(v.ctx)
 
 	// spawn user db
-	userPgContainer, err := _helper.StartPostgresContainer(v.ctx, v.network.Name, "user_db", viper.GetString("container.postgresql_version"))
+	userPgContainer, err := _helper.StartPostgresContainer(v.ctx, v.network.Name, "test_user_db", viper.GetString("container.postgresql_version"))
 	if err != nil {
 		log.Fatalf("failed starting postgres container: %s", err)
 	}
 	v.userPgContainer = userPgContainer
 
 	// spawn auth db
-	authPgContainer, err := _helper.StartPostgresContainer(v.ctx, v.network.Name, "auth_db", viper.GetString("container.postgresql_version"))
+	authPgContainer, err := _helper.StartPostgresContainer(v.ctx, v.network.Name, "test_auth_db", viper.GetString("container.postgresql_version"))
 	if err != nil {
 		log.Fatalf("failed starting postgres container: %s", err)
 	}
@@ -122,6 +122,12 @@ func (v *VerifyEmailITSuite) SetupSuite() {
 	}
 	v.mailHogContainer = mailContainer
 
+	gatewayContainer, err := _helper.StartGatewayContainer(v.ctx, v.network.Name, viper.GetString("container.gateway_version"))
+	if err != nil {
+		log.Fatalf("failed starting gateway container: %s", err)
+	}
+	v.gatewayContainer = gatewayContainer
+	time.Sleep(time.Second)
 }
 
 func (v *VerifyEmailITSuite) TearDownSuite() {
@@ -155,6 +161,9 @@ func (v *VerifyEmailITSuite) TearDownSuite() {
 	if err := v.mailHogContainer.Terminate(v.ctx); err != nil {
 		log.Fatalf("error terminating mailhog container: %s", err)
 	}
+	if err := v.gatewayContainer.Terminate(v.ctx); err != nil {
+		log.Fatalf("error terminating gateway container: %s", err)
+	}
 
 	log.Println("Tear Down integration test suite for VerifyEmailITSuite")
 }
@@ -177,7 +186,7 @@ func (v *VerifyEmailITSuite) TestVerifyEmailIT_Success() {
 	v.Equal(http.StatusCreated, registerResponse.StatusCode)
 	v.Contains(string(registerResponseBody), "Register Success. Check your email for verification.")
 
-	regex := `http://localhost:8081/verify-email\?userid=[^&]+&token=[^"']+`
+	regex := `http://localhost:9090/api/v1/auth/verify-email\?userid=[^&]+&token=[^"']+`
 	link := helper.RetrieveDataFromEmail(email, regex, "mail", v.T())
 
 	time.Sleep(time.Second) //give a time for auth_db update the user
@@ -199,7 +208,7 @@ func (v *VerifyEmailITSuite) TestVerifyEmailIT_Success() {
 func (v *VerifyEmailITSuite) TestVerifyEmailIT_MissingQUery() {
 
 	client := http.Client{}
-	verifyRequest, err := http.NewRequest(http.MethodGet, "http://localhost:8081/verify-email?", nil)
+	verifyRequest, err := http.NewRequest(http.MethodGet, "http://localhost:9090/api/v1/auth/verify-email?", nil)
 	v.NoError(err)
 
 	verifyResponse, err := client.Do(verifyRequest)
@@ -228,7 +237,7 @@ func (v *VerifyEmailITSuite) TestVerifyEmailIT_TokenInvalid() {
 	v.Contains(string(registerResponseBody), "Register Success. Check your email for verification.")
 
 	// get the first link
-	regex := `http://localhost:8081/verify-email\?userid=[^&]+&token=[^"']+`
+	regex := `http://localhost:9090/api/v1/auth/verify-email\?userid=[^&]+&token=[^"']+`
 	link := helper.RetrieveDataFromEmail(email, regex, "mail", v.T())
 
 	time.Sleep(time.Second) //give a time for auth_db update the user
@@ -241,7 +250,7 @@ func (v *VerifyEmailITSuite) TestVerifyEmailIT_TokenInvalid() {
 	}
 	_ = json.NewEncoder(reqBody).Encode(encoder)
 
-	resendVerification, err := http.NewRequest(http.MethodPost, "http://localhost:8081/resend-verification-email", reqBody)
+	resendVerification, err := http.NewRequest(http.MethodPost, "http://localhost:9090/api/v1/auth/resend-verification-email", reqBody)
 	v.NoError(err)
 
 	resendVerificationResponse, err := client.Do(resendVerification)
@@ -283,7 +292,7 @@ func (v *VerifyEmailITSuite) TestVerifyEmailIT_AlreadyVerified() {
 
 	time.Sleep(time.Second) //give a time for auth_db update the user
 
-	regex := `http://localhost:8081/verify-email\?userid=[^&]+&token=[^"']+`
+	regex := `http://localhost:9090/api/v1/auth/verify-email\?userid=[^&]+&token=[^"']+`
 	link := helper.RetrieveDataFromEmail(email, regex, "mail", v.T())
 
 	// verify email
@@ -363,7 +372,7 @@ func (v *VerifyEmailITSuite) TestVerifyEmailIT_AlreadyVerified() {
 // }
 
 func (v *VerifyEmailITSuite) TestVerifyEmailIT_UserNotFound() {
-	link := "http://localhost:8081/verify-email?userid=examplerandom&token=random-token-that-is-not-valid"
+	link := "http://localhost:9090/api/v1/auth/verify-email?userid=examplerandom&token=random-token-that-is-not-valid"
 	client := http.Client{}
 	re := regexp.MustCompile(`userid=([^&]+)`)
 	randomUserID := fmt.Sprintf("random-%d", time.Now().UnixNano())
@@ -399,7 +408,7 @@ func (v *VerifyEmailITSuite) TestVerifyEmailIT_ChangeTokenSuccess() {
 
 	time.Sleep(time.Second) //give a time for auth_db update the user
 
-	regex := `http://localhost:8081/verify-email\?userid=[^&]+&token=[^"']+`
+	regex := `http://localhost:9090/api/v1/auth/verify-email\?userid=[^&]+&token=[^"']+`
 	link := helper.RetrieveDataFromEmail(email, regex, "mail", v.T())
 
 	// - verify-email
@@ -426,7 +435,7 @@ func (v *VerifyEmailITSuite) TestVerifyEmailIT_ChangeTokenSuccess() {
 	}
 	_ = json.NewEncoder(reqBody).Encode(encoder)
 
-	req, err := http.NewRequest(http.MethodPost, "http://localhost:8081/login", reqBody)
+	req, err := http.NewRequest(http.MethodPost, "http://localhost:9090/api/v1/auth/login", reqBody)
 	v.NoError(err)
 
 	response, err := client.Do(req)
@@ -446,27 +455,6 @@ func (v *VerifyEmailITSuite) TestVerifyEmailIT_ChangeTokenSuccess() {
 	jwt, ok := respData["data"].(string)
 	v.True(ok, "expected jwt token in data field")
 
-	verifyReq, err := http.NewRequest(http.MethodPost, "http://localhost:8081/verify", nil)
-	v.NoError(err)
-	verifyReq.Header.Set("Authorization", "Bearer "+jwt)
-
-	verifyResp, err := client.Do(verifyReq)
-	v.NoError(err)
-	defer verifyResp.Body.Close()
-
-	v.Equal(http.StatusNoContent, verifyResp.StatusCode)
-
-	// get the response header user data -> pass to update email header in
-	// userDataHeader := c.Request.Header.Get("User-Data")
-	// UserId string `json:"user_id"`
-	userDataHeader := verifyResp.Header.Get("User-Data")
-	v.NotEmpty(userDataHeader, "User-Data header should not be empty")
-
-	var ud utils.UserData
-	err = json.Unmarshal([]byte(userDataHeader), &ud)
-	v.NoError(err)
-	v.NotEmpty(ud.UserId, "user_id should not be empty")
-
 	// update email
 	newEmail := fmt.Sprintf("test+updated+%d@example.com", time.Now().UnixNano())
 	updateBody := &bytes.Buffer{}
@@ -476,18 +464,21 @@ func (v *VerifyEmailITSuite) TestVerifyEmailIT_ChangeTokenSuccess() {
 	_ = json.NewEncoder(updateBody).Encode(updatePayload)
 
 	// - update email in the user endpoint
-	updateReq, err := http.NewRequest(http.MethodPatch, "http://localhost:8082/email", updateBody)
+	updateReq, err := http.NewRequest(http.MethodPatch, "http://localhost:9090/api/v1/user/email", updateBody)
+	updateReq.Header.Set("Authorization", "Bearer "+jwt)
 	v.NoError(err)
-	updateReq.Header.Set("User-Data", userDataHeader)
+
 	updateResp, err := client.Do(updateReq)
 	v.NoError(err)
+
 	updateRespBody, err := io.ReadAll(updateResp.Body)
+
 	v.NoError(err)
 	v.Equal(http.StatusOK, updateResp.StatusCode)
 	v.Contains(string(updateRespBody), "verify to change email")
 
 	// get the link from email in mailhog
-	regex = `http://localhost:8081/verify-email\?userid=[^&]+&changeEmailToken=[^"']+`
+	regex = `http://localhost:9090/api/v1/auth/verify-email\?userid=[^&]+&changeEmailToken=[^"']+`
 	link = helper.RetrieveDataFromEmail(newEmail, regex, "mail", v.T())
 
 	// verify new email

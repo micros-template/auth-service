@@ -16,7 +16,6 @@ import (
 
 	"10.1.20.130/dropping/auth-service/test/helper"
 	_helper "github.com/dropboks/sharedlib/test/helper"
-	"github.com/dropboks/sharedlib/utils"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/suite"
 	"github.com/testcontainers/testcontainers-go"
@@ -27,6 +26,7 @@ type LoginITSuite struct {
 	ctx context.Context
 
 	network                      *testcontainers.DockerNetwork
+	gatewayContainer             *_helper.GatewayContainer
 	userPgContainer              *_helper.PostgresContainer
 	authPgContainer              *_helper.PostgresContainer
 	redisContainer               *_helper.RedisContainer
@@ -54,14 +54,14 @@ func (l *LoginITSuite) SetupSuite() {
 	l.network = _helper.StartNetwork(l.ctx)
 
 	// spawn user db
-	userPgContainer, err := _helper.StartPostgresContainer(l.ctx, l.network.Name, "user_db", viper.GetString("container.postgresql_version"))
+	userPgContainer, err := _helper.StartPostgresContainer(l.ctx, l.network.Name, "test_user_db", viper.GetString("container.postgresql_version"))
 	if err != nil {
 		log.Fatalf("failed starting postgres container: %s", err)
 	}
 	l.userPgContainer = userPgContainer
 
 	// spawn auth db
-	authPgContainer, err := _helper.StartPostgresContainer(l.ctx, l.network.Name, "auth_db", viper.GetString("container.postgresql_version"))
+	authPgContainer, err := _helper.StartPostgresContainer(l.ctx, l.network.Name, "test_auth_db", viper.GetString("container.postgresql_version"))
 	if err != nil {
 		log.Fatalf("failed starting postgres container: %s", err)
 	}
@@ -122,6 +122,13 @@ func (l *LoginITSuite) SetupSuite() {
 	}
 	l.mailHogContainer = mailContainer
 
+	gatewayContainer, err := _helper.StartGatewayContainer(l.ctx, l.network.Name, viper.GetString("container.gateway_version"))
+	if err != nil {
+		log.Fatalf("failed starting gateway container: %s", err)
+	}
+	l.gatewayContainer = gatewayContainer
+	time.Sleep(time.Second)
+
 }
 
 func (l *LoginITSuite) TearDownSuite() {
@@ -155,6 +162,9 @@ func (l *LoginITSuite) TearDownSuite() {
 	if err := l.mailHogContainer.Terminate(l.ctx); err != nil {
 		log.Fatalf("error terminating mailhog container: %s", err)
 	}
+	if err := l.gatewayContainer.Terminate(l.ctx); err != nil {
+		log.Fatalf("error terminating gateway container: %s", err)
+	}
 	log.Println("Tear Down integration test suite for LoginITSuite")
 }
 func TestLoginITSuite(t *testing.T) {
@@ -180,7 +190,7 @@ func (l *LoginITSuite) TestLoginIT_Success() {
 	time.Sleep(time.Second) //give a time for auth_db update the user
 
 	// verify email
-	regex := `http://localhost:8081/verify-email\?userid=[^&]+&token=[^"']+`
+	regex := `http://localhost:9090/api/v1/auth/verify-email\?userid=[^&]+&token=[^"']+`
 	link := helper.RetrieveDataFromEmail(email, regex, "mail", l.T())
 
 	verifyRequest, err := http.NewRequest(http.MethodGet, link, nil)
@@ -232,7 +242,7 @@ func (l *LoginITSuite) TestLoginIT_Success2FA() {
 	time.Sleep(time.Second) //give a time for auth_db update the user
 
 	// verify email
-	regex := `http://localhost:8081/verify-email\?userid=[^&]+&token=[^"']+`
+	regex := `http://localhost:9090/api/v1/auth/verify-email\?userid=[^&]+&token=[^"']+`
 	link := helper.RetrieveDataFromEmail(email, regex, "mail", l.T())
 
 	verifyRequest, err := http.NewRequest(http.MethodGet, link, nil)
@@ -269,24 +279,6 @@ func (l *LoginITSuite) TestLoginIT_Success2FA() {
 	jwt, ok := respData["data"].(string)
 	l.True(ok, "expected jwt token in data field")
 
-	// verify token
-	verifyReq, err := http.NewRequest(http.MethodPost, "http://localhost:8081/verify", nil)
-	l.NoError(err)
-	verifyReq.Header.Set("Authorization", "Bearer "+jwt)
-
-	verifyResp, err := client.Do(verifyReq)
-	l.NoError(err)
-	defer verifyResp.Body.Close()
-
-	l.Equal(http.StatusNoContent, verifyResp.StatusCode)
-	userDataHeader := verifyResp.Header.Get("User-Data")
-	l.NotEmpty(userDataHeader, "User-Data header should not be empty")
-
-	var ud utils.UserData
-	err = json.Unmarshal([]byte(userDataHeader), &ud)
-	l.NoError(err)
-	l.NotEmpty(ud.UserId, "user_id should not be empty")
-
 	// updateuser enable 2FA
 	reqBody := &bytes.Buffer{}
 
@@ -295,9 +287,9 @@ func (l *LoginITSuite) TestLoginIT_Success2FA() {
 	_ = formWriter.WriteField("two_factor_enabled", "true")
 	formWriter.Close()
 
-	request, err = http.NewRequest(http.MethodPatch, "http://localhost:8082/", reqBody)
+	request, err = http.NewRequest(http.MethodPatch, "http://localhost:9090/api/v1/user/", reqBody)
 	request.Header.Set("Content-Type", formWriter.FormDataContentType())
-	request.Header.Set("User-Data", userDataHeader)
+	request.Header.Set("Authorization", "Bearer "+jwt)
 
 	l.NoError(err)
 
@@ -340,7 +332,7 @@ func (l *LoginITSuite) TestLoginIT_Success2FA() {
 	}
 	_ = json.NewEncoder(reqBody).Encode(encoder)
 
-	req, err := http.NewRequest(http.MethodPost, "http://localhost:8081/verify-otp", reqBody)
+	req, err := http.NewRequest(http.MethodPost, "http://localhost:9090/api/v1/auth/verify-otp", reqBody)
 	l.NoError(err)
 
 	client = http.Client{}
@@ -363,7 +355,7 @@ func (l *LoginITSuite) TestLoginIT_MissingBody() {
 	}
 	_ = json.NewEncoder(reqBody).Encode(encoder)
 
-	req, err := http.NewRequest(http.MethodPost, "http://localhost:8081/login", reqBody)
+	req, err := http.NewRequest(http.MethodPost, "http://localhost:9090/api/v1/auth/login", reqBody)
 	l.NoError(err)
 
 	client := http.Client{}
@@ -430,7 +422,7 @@ func (l *LoginITSuite) TestLoginIT_PasswordDoesntMatch() {
 	time.Sleep(time.Second) //give a time for auth_db update the user
 
 	// verify email
-	regex := `http://localhost:8081/verify-email\?userid=[^&]+&token=[^"']+`
+	regex := `http://localhost:9090/api/v1/auth/verify-email\?userid=[^&]+&token=[^"']+`
 	link := helper.RetrieveDataFromEmail(email, regex, "mail", l.T())
 
 	verifyRequest, err := http.NewRequest(http.MethodGet, link, nil)
@@ -456,7 +448,7 @@ func (l *LoginITSuite) TestLoginIT_PasswordDoesntMatch() {
 	}
 	_ = json.NewEncoder(reqBody).Encode(encoder)
 
-	req, err := http.NewRequest(http.MethodPost, "http://localhost:8081/login", reqBody)
+	req, err := http.NewRequest(http.MethodPost, "http://localhost:9090/api/v1/auth/login", reqBody)
 	l.NoError(err)
 
 	client = http.Client{}

@@ -52,13 +52,6 @@ func (c *ChangePasswordITSuite) SetupSuite() {
 	// spawn sharedNetwork
 	c.network = _helper.StartNetwork(c.ctx)
 
-	// spawn gateway container
-	gatewayContainer, err := _helper.StartGatewayContainer(c.ctx, c.network.Name, viper.GetString("container.gateway_version"))
-	if err != nil {
-		log.Fatalf("failed starting gateway container: %s", err)
-	}
-	c.gatewayContainer = gatewayContainer
-
 	// spawn user db
 	userPgContainer, err := _helper.StartPostgresContainer(c.ctx, c.network.Name, "test_user_db", viper.GetString("container.postgresql_version"))
 	if err != nil {
@@ -128,11 +121,15 @@ func (c *ChangePasswordITSuite) SetupSuite() {
 	}
 	c.mailHogContainer = mailContainer
 
+	gatewayContainer, err := _helper.StartGatewayContainer(c.ctx, c.network.Name, viper.GetString("container.gateway_version"))
+	if err != nil {
+		log.Fatalf("failed starting gateway container: %s", err)
+	}
+	c.gatewayContainer = gatewayContainer
+	time.Sleep(time.Second)
+
 }
 func (c *ChangePasswordITSuite) TearDownSuite() {
-	if err := c.gatewayContainer.Terminate(c.ctx); err != nil {
-		log.Fatalf("error terminating gateway container: %s", err)
-	}
 	if err := c.userPgContainer.Terminate(c.ctx); err != nil {
 		log.Fatalf("error terminating user postgres container: %s", err)
 	}
@@ -162,6 +159,9 @@ func (c *ChangePasswordITSuite) TearDownSuite() {
 	}
 	if err := c.mailHogContainer.Terminate(c.ctx); err != nil {
 		log.Fatalf("error terminating mailhog container: %s", err)
+	}
+	if err := c.gatewayContainer.Terminate(c.ctx); err != nil {
+		log.Fatalf("error terminating gateway container: %s", err)
 	}
 	log.Println("Tear Down integration test suite for ChangePasswordITSuite")
 }
