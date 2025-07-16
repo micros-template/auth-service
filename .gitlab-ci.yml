@@ -80,9 +80,9 @@ update_version:
     - yq e '.["auth_service_version"] = "'$VERSION'"' -i version.yaml 
     - git config user.email "ci@local"
     - git config user.name "CI Bot"
+    - cat version.yaml
     - git add version.yaml
     - git diff --cached --quiet || git commit -m "Update auth_service_version to $VERSION"
-    - echo "$CI_PROJECT_ROOT_NAMESPACE"
-    - git push http:/$CI_PROJECT_ROOT_NAMESPACE:$DROPPING_VERSIONING_TOKEN@10.1.20.130/dropping/versioning.git HEAD:main
+    - git push http://$CI_PROJECT_ROOT_NAMESPACE:$DROPPING_VERSIONING_TOKEN@10.1.20.130/dropping/versioning.git HEAD:main
 
 # trigger deployment
