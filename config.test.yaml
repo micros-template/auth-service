@@ -73,7 +73,7 @@ jwt:
   secret_key: "jwt_secret_test"
 
 container:
-  auth_service_version: "latest"
+  auth_service_version: "test"
   file_service_version: "latest"
   user_service_version: "latest"
   notification_service_version: "latest"
