@@ -2,8 +2,8 @@ stages:
   - lint
   - test
   - build
-  - deploy
   - post-pipeline
+  - deploy
 
 staticcheck:
   stage: lint
@@ -85,3 +85,11 @@ update_version:
     - git push http://$CI_PROJECT_ROOT_NAMESPACE:$DROPPING_VERSIONING_TOKEN@10.1.20.130/dropping/versioning.git HEAD:main
 
 # trigger deployment
+deployment:
+  stage: deploy
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
+  trigger:
+    project: "$CI_PROJECT_NAMESPACE/deployment"
+    branch: main
+    strategy: depend
