@@ -8,54 +8,66 @@ stages:
 go_mod_download:
   stage: setup
   image: golang:1.24-alpine3.22
-  script:
+  before_script:
     - apk add --no-cache git
     - go env -w GOPRIVATE="10.1.20.130/*"
     - go env -w GOINSECURE="10.1.20.130/*"
     - git config --global url."http://$DROPPING_READ_TOKEN@10.1.20.130/".insteadOf "https://10.1.20.130/"
+  script:
     - go mod download
 
 staticcheck:
   stage: lint
   image: golang:1.24-alpine3.22
-  script:
+  before_script:
     - apk add --no-cache git
     - go env -w GOPRIVATE="10.1.20.130/*"
     - go env -w GOINSECURE="10.1.20.130/*"
     - git config --global url."http://$DROPPING_READ_TOKEN@10.1.20.130/".insteadOf "https://10.1.20.130/"
+  script:
     - go install honnef.co/go/tools/cmd/staticcheck@latest
     - staticcheck ./...
 
-# Test is still not implemented
-go_test:
+build_test_image:
   stage: test
   image: golang:1.24-alpine3.22
   script:
+    - chmod +x ./bin/build-test-image.sh
+    - ./bin/build-test-image.sh
+
+go_test:
+  stage: test
+  image: golang:1.24-alpine3.22
+  before_script:
     - apk add --no-cache git
     - go env -w GOPRIVATE="10.1.20.130/*"
     - go env -w GOINSECURE="10.1.20.130/*"
     - git config --global url."http://$DROPPING_READ_TOKEN@10.1.20.130/".insteadOf "https://10.1.20.130/"
+  script:
     - echo "Running go test (unit testing)..."
     - go test ./test/ut/... -v || (echo "[FAIL] Unit testing failed." && exit 1)
     - echo "Running go test (integration testing)..."
     - go test ./test/it/... -v || (echo "[FAIL] Integration testing failed." && exit 1)
-
+  after_script:
+    - chmod +x ./bin/clean-test-image.sh
+    - ./bin/clean-test-image.sh
 
 image_build:
   stage: build
   image: golang:1.24-alpine3.22
-  services:
-    - name: docker:dind
-      command: ["--insecure-registry=10.1.20.130:5001"] 
-  variables:
-    DOCKER_DRIVER: overlay2
+  # services:
+  #   - name: docker:dind
+  #     command: ["--insecure-registry=10.1.20.130:5001"] 
+  # variables:
+  #   DOCKER_DRIVER: overlay2
   rules:
     - if: '$CI_COMMIT_BRANCH == "main"'
-  script:
+  before_script:
     - apk add --no-cache docker
     - apk add --no-cache git
     - go env -w GOPRIVATE="10.1.20.130/*"
     - go env -w GOINSECURE="10.1.20.130/*"
     - git config --global url."http://$DROPPING_READ_TOKEN@10.1.20.130/".insteadOf "https://10.1.20.130/"
+  script:
     - chmod +x ./bin/build.sh
     - ./bin/build.sh
