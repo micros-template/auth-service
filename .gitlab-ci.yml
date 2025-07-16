@@ -77,7 +77,7 @@ update_version:
     - VERSION=$(cat VERSION)
     - git clone http://$DROPPING_VERSIONING_TOKEN@10.1.20.130/dropping/versioning.git/
     - cd versioning
-    - yq e '.["auth_service_version"] = "'$VERSION'"' -i versions.yaml 
+    - yq e '.["auth_service_version"] = "'$VERSION'"' -i version.yaml 
     - git config user.email "ci@local"
     - git config user.name "CI Bot"
     - git commit -m "Update auth_service_version to $VERSION"
