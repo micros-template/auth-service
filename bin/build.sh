@@ -18,7 +18,7 @@ echo "Tagging image as $registry_image" >/dev/stderr
 docker tag "$service_name:$VERSION" "$registry_image"
 docker push "$registry_image"
 
-echo "Tagging image as $registry_image" >/dev/stderr
+echo "Tagging image as $CI_REGISTRY_IMAGE:latest" >/dev/stderr
 docker tag "$service_name:$VERSION" "$CI_REGISTRY_IMAGE:latest"
 docker push "$CI_REGISTRY_IMAGE:latest"
 
