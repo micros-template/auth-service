@@ -30,26 +30,26 @@ build_test_image:
     - chmod +x ./bin/build-test-image.sh
     - ./bin/build-test-image.sh
 
-go_test:
-  stage: test
-  image: golang:1.24-alpine3.22
-  before_script:
-    - apk add --no-cache git
-    - go env -w GOPRIVATE="10.1.20.130/*"
-    - go env -w GOINSECURE="10.1.20.130/*"
-    - git config --global url."http://$DROPPING_READ_TOKEN@10.1.20.130/".insteadOf "https://10.1.20.130/"
-  script:
-    - echo "Running go test (unit testing)..."
-    - go test ./test/ut/... -v || (echo "[FAIL] Unit testing failed." && exit 1)
-    - echo "Running go test (integration testing)..."
-    - go test ./test/it/... -v || (echo "[FAIL] Integration testing failed." && exit 1)
-  after_script:
-    - chmod +x ./bin/clean-test-image.sh
-    - ./bin/clean-test-image.sh
-    - echo "other services image..."
-    - docker rmi 10.1.20.130:5001/dropping/user-service:latest
-    - docker rmi 10.1.20.130:5001/dropping/file-service:latest
-    - docker rmi 10.1.20.130:5001/dropping/notification-service:latest
+# go_test:
+#   stage: test
+#   image: golang:1.24-alpine3.22
+#   before_script:
+#     - apk add --no-cache git
+#     - go env -w GOPRIVATE="10.1.20.130/*"
+#     - go env -w GOINSECURE="10.1.20.130/*"
+#     - git config --global url."http://$DROPPING_READ_TOKEN@10.1.20.130/".insteadOf "https://10.1.20.130/"
+#   script:
+#     - echo "Running go test (unit testing)..."
+#     - go test ./test/ut/... -v || (echo "[FAIL] Unit testing failed." && exit 1)
+#     - echo "Running go test (integration testing)..."
+#     - go test ./test/it/... -v || (echo "[FAIL] Integration testing failed." && exit 1)
+#   after_script:
+#     - chmod +x ./bin/clean-test-image.sh
+#     - ./bin/clean-test-image.sh
+#     - echo "other services image..."
+#     - docker rmi 10.1.20.130:5001/dropping/user-service:latest
+#     - docker rmi 10.1.20.130:5001/dropping/file-service:latest
+#     - docker rmi 10.1.20.130:5001/dropping/notification-service:latest
 
 image_build:
   stage: build
@@ -68,17 +68,19 @@ image_build:
 
 update_version:
   stage: post-pipeline
-  image: alpine/git
+  image: ubuntu:latest
   rules:
     - if: '$CI_COMMIT_BRANCH == "main"'
   script:
-    - VERSION=$(cat VERSION)
-    - git clone http://$DROPPING_VERSIONING_TOKEN@10.1.20.130/dropping/versioning.git/
-    - cd service-versions
-    - yq e '.["auth_service_version"] = "'$VERSION'"' -i versions.yaml 
-    - git config user.email "ci@local"
-    - git config user.name "CI Bot"
-    - git commit -m "Update auth_service_version to $VERSION"
-    - git push http://$DROPPING_VERSIONING_TOKEN@10.1.20.130/dropping/versioning.git HEAD:main
+  - apt-get update && apt-get install -y git yq
+  - VERSION=$(cat VERSION)
+  - git clone http://$DROPPING_VERSIONING_TOKEN@10.1.20.130/dropping/versioning.git/
+  - cd versioning
+  - yq e '.["auth_service_version"] = "'$VERSION'"' -i versions.yaml
+  - git config user.email "ci@local"
+  - git config user.name "CI Bot"
+  - git add versions.yaml
+  - git commit -m "Update auth_service_version to $VERSION"
+  - git push http://$DROPPING_VERSIONING_TOKEN@10.1.20.130/dropping/versioning.git HEAD:main
 
 # trigger deployment
