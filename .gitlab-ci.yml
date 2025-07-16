@@ -68,19 +68,19 @@ image_build:
 
 update_version:
   stage: post-pipeline
-  image: ubuntu:latest
+  image: alpine:latest
   rules:
     - if: '$CI_COMMIT_BRANCH == "main"'
+  before_script:
+    - apk add --no-cache git yq
   script:
-  - apt-get update && apt-get install -y git yq
-  - VERSION=$(cat VERSION)
-  - git clone http://$DROPPING_VERSIONING_TOKEN@10.1.20.130/dropping/versioning.git/
-  - cd versioning
-  - yq e '.["auth_service_version"] = "'$VERSION'"' -i versions.yaml
-  - git config user.email "ci@local"
-  - git config user.name "CI Bot"
-  - git add versions.yaml
-  - git commit -m "Update auth_service_version to $VERSION"
-  - git push http://$DROPPING_VERSIONING_TOKEN@10.1.20.130/dropping/versioning.git HEAD:main
+    - VERSION=$(cat VERSION)
+    - git clone http://$DROPPING_VERSIONING_TOKEN@10.1.20.130/dropping/versioning.git/
+    - cd versioning
+    - yq e '.["auth_service_version"] = "'$VERSION'"' -i versions.yaml 
+    - git config user.email "ci@local"
+    - git config user.name "CI Bot"
+    - git commit -m "Update auth_service_version to $VERSION"
+    - git push http://$DROPPING_VERSIONING_TOKEN@10.1.20.130/dropping/versioning.git HEAD:main
 
 # trigger deployment
