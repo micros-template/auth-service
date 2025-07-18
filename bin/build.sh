@@ -9,7 +9,7 @@ wait
 
 if ! command -v upx >/dev/null 2>&1; then
   echo "UPX not found. Installing..."
-  sudo apt-get update && sudo apt-get install -y upx
+  apk update && apk add upx
 fi
 
 upx --best --lzma ./bin/dist/$service_name
