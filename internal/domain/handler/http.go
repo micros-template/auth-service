@@ -1,11 +1,16 @@
 package handler
 
 import (
+	"net/http"
+
 	"github.com/gin-gonic/gin"
 )
 
 func AuthRoutes(r *gin.Engine, ah AuthHandler) *gin.Engine {
 	{
+		r.GET("/healthy", func(ctx *gin.Context) {
+			ctx.JSON(http.StatusOK, "Healthy")
+		})
 		r.POST("/login", ah.Login)
 		r.POST("/register", ah.Register)
 		r.POST("/verify", ah.Verify)
