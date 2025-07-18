@@ -57,8 +57,7 @@ image_build:
   rules:
     - if: '$CI_COMMIT_BRANCH == "main"'
   before_script:
-    - apk add --no-cache docker
-    - apk add --no-cache git
+    - apk add --no-cache docker git upx
     - go env -w GOPRIVATE="10.1.20.130/*"
     - go env -w GOINSECURE="10.1.20.130/*"
     - git config --global url."http://$DROPPING_READ_TOKEN@10.1.20.130/".insteadOf "https://10.1.20.130/"
