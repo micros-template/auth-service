@@ -1,6 +1,8 @@
 package dto
 
-import "errors"
+import (
+	"errors"
+)
 
 var (
 	LOGIN_SUCCESS                = "Login Success"
@@ -42,4 +44,96 @@ var (
 	Err_INTERNAL_PUBLISH_MESSAGE    = errors.New("error publish email")
 	Err_INTERNAL_FAILED_BUILD_QUERY = errors.New("failed to build query")
 	Err_INTERNAL_FAILED_SCAN_USER   = errors.New("failed to scan user")
+)
+
+type (
+	GlobalInternalServerErrorExample struct {
+		StatusCode uint16 `json:"status_code" example:"500"`
+		Message    string `json:"message" example:"internal server error"`
+	}
+	GlobalUnauthorizedErrorExample struct {
+		StatusCode uint16 `json:"status_code" example:"401"`
+		Message    string `json:"message" example:"unauthorized"`
+	}
+	GlobalUserNotFoundExample struct {
+		StatusCode uint16 `json:"status_code" example:"404"`
+		Message    string `json:"message" example:"user not found"`
+	}
+	GlobalInvalidInputExample struct {
+		StatusCode uint16 `json:"status_code" example:"400"`
+		Message    string `json:"message" example:"invalid input"`
+	}
+	GlobalMissingEmailExample struct {
+		StatusCode uint16 `json:"status_code" example:"400"`
+		Message    string `json:"message" example:"missing email"`
+	}
+	ResponseError struct {
+		StatusCode uint16 `json:"status_code"`
+		Message    string `json:"message"`
+	}
+
+	ResponseSuccess struct {
+		StatusCode uint16      `json:"status_code"`
+		Message    string      `json:"message"`
+		Data       interface{} `json:"data"`
+	}
+	LoginSuccesExample struct {
+		StatusCode uint16 `json:"status_code" example:"200"`
+		Message    string `json:"message" example:"Login Success"`
+		Data       string `json:"data" example:"token"`
+	}
+	RegisterSuccessExample struct {
+		StatusCode uint16 `json:"status_code" example:"201"`
+		Message    string `json:"message" example:"Register Success. Check your email for verification."`
+		Data       string `json:"data" example:"null"`
+	}
+	RegisterBadRequestExample struct {
+		StatusCode uint16 `json:"status_code" example:"400"`
+		Message    string `json:"message" example:"wrong image ext, image limit sized exceeded, password doesn't match"`
+	}
+	RegisterConflictExample struct {
+		StatusCode uint16 `json:"status_code" example:"409"`
+		Message    string `json:"message" example:"user with this email exist"`
+	}
+
+	VerifyEmailSuccessExample struct {
+		StatusCode uint16 `json:"status_code" example:"200"`
+		Message    string `json:"message" example:"Verification Success"`
+		Data       string `json:"data" example:"null"`
+	}
+
+	VerifyEmailConflictExample struct {
+		StatusCode uint16 `json:"status_code" example:"409"`
+		Message    string `json:"message" example:"user is already verified"`
+	}
+
+	ResendVerificationEmailSuccessExample struct {
+		StatusCode uint16 `json:"status_code" example:"200"`
+		Message    string `json:"message" example:"Check your email for verification"`
+		Data       string `json:"data" example:"null"`
+	}
+	VerifyOTPSuccessExample struct {
+		StatusCode uint16 `json:"status_code" example:"200"`
+		Message    string `json:"message" example:"OTP is Valid"`
+		Data       string `json:"data" example:"token"`
+	}
+	VerifyOTPUnauthorizedExample struct {
+		StatusCode uint16 `json:"status_code" example:"401"`
+		Message    string `json:"message" example:"OTP is invalid"`
+	}
+	ResendVerificationOTPSuccessExample struct {
+		StatusCode uint16 `json:"status_code" example:"200"`
+		Message    string `json:"message" example:"OTP Has been sent to linked email"`
+		Data       string `json:"data" example:"null"`
+	}
+	ResetPasswordSuccessExample struct {
+		StatusCode uint16 `json:"status_code" example:"200"`
+		Message    string `json:"message" example:"Reset password email has been sent"`
+		Data       string `json:"data" example:"null"`
+	}
+	ChangePasswordSuccessExample struct {
+		StatusCode uint16 `json:"status_code" example:"200"`
+		Message    string `json:"message" example:"password changed"`
+		Data       string `json:"data" example:"null"`
+	}
 )

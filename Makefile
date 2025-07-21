@@ -7,6 +7,9 @@ clean-modules:
 	@echo "clean unused module in go.mod and go.sum"
 	@go mod tidy
 
+generate-docs:
+	swag init -g cmd/main.go
+
 air-windows:
 	@air -c .air.win.toml
 

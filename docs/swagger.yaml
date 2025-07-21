@@ -1,0 +1,625 @@
+basePath: /api/v1/auth
+definitions:
+  dto.ChangePasswordSuccessExample:
+    properties:
+      data:
+        example: "null"
+        type: string
+      message:
+        example: password changed
+        type: string
+      status_code:
+        example: 200
+        type: integer
+    type: object
+  dto.GlobalInternalServerErrorExample:
+    properties:
+      message:
+        example: internal server error
+        type: string
+      status_code:
+        example: 500
+        type: integer
+    type: object
+  dto.GlobalInvalidInputExample:
+    properties:
+      message:
+        example: invalid input
+        type: string
+      status_code:
+        example: 400
+        type: integer
+    type: object
+  dto.GlobalMissingEmailExample:
+    properties:
+      message:
+        example: missing email
+        type: string
+      status_code:
+        example: 400
+        type: integer
+    type: object
+  dto.GlobalUnauthorizedErrorExample:
+    properties:
+      message:
+        example: unauthorized
+        type: string
+      status_code:
+        example: 401
+        type: integer
+    type: object
+  dto.GlobalUserNotFoundExample:
+    properties:
+      message:
+        example: user not found
+        type: string
+      status_code:
+        example: 404
+        type: integer
+    type: object
+  dto.LoginRequest:
+    properties:
+      email:
+        type: string
+      password:
+        minLength: 6
+        type: string
+    required:
+    - email
+    - password
+    type: object
+  dto.LoginSuccesExample:
+    properties:
+      data:
+        example: token
+        type: string
+      message:
+        example: Login Success
+        type: string
+      status_code:
+        example: 200
+        type: integer
+    type: object
+  dto.RegisterBadRequestExample:
+    properties:
+      message:
+        example: wrong image ext, image limit sized exceeded, password doesn't match
+        type: string
+      status_code:
+        example: 400
+        type: integer
+    type: object
+  dto.RegisterRequest:
+    properties:
+      confirm_password:
+        minLength: 8
+        type: string
+      email:
+        type: string
+      full_name:
+        maxLength: 100
+        minLength: 1
+        type: string
+      password:
+        minLength: 8
+        type: string
+    required:
+    - confirm_password
+    - email
+    - full_name
+    - password
+    type: object
+  dto.RegisterSuccessExample:
+    properties:
+      data:
+        example: "null"
+        type: string
+      message:
+        example: Register Success. Check your email for verification.
+        type: string
+      status_code:
+        example: 201
+        type: integer
+    type: object
+  dto.ResendVerificationEmailSuccessExample:
+    properties:
+      data:
+        example: "null"
+        type: string
+      message:
+        example: Check your email for verification
+        type: string
+      status_code:
+        example: 200
+        type: integer
+    type: object
+  dto.ResendVerificationOTPSuccessExample:
+    properties:
+      data:
+        example: "null"
+        type: string
+      message:
+        example: OTP Has been sent to linked email
+        type: string
+      status_code:
+        example: 200
+        type: integer
+    type: object
+  dto.ResendVerificationRequest:
+    properties:
+      email:
+        type: string
+    required:
+    - email
+    type: object
+  dto.ResetPasswordRequest:
+    properties:
+      email:
+        type: string
+    required:
+    - email
+    type: object
+  dto.ResetPasswordSuccessExample:
+    properties:
+      data:
+        example: "null"
+        type: string
+      message:
+        example: Reset password email has been sent
+        type: string
+      status_code:
+        example: 200
+        type: integer
+    type: object
+  dto.VerifyEmailConflictExample:
+    properties:
+      message:
+        example: user is already verified
+        type: string
+      status_code:
+        example: 409
+        type: integer
+    type: object
+  dto.VerifyEmailSuccessExample:
+    properties:
+      data:
+        example: "null"
+        type: string
+      message:
+        example: Verification Success
+        type: string
+      status_code:
+        example: 200
+        type: integer
+    type: object
+  dto.VerifyOTPRequest:
+    properties:
+      email:
+        type: string
+      otp:
+        type: string
+    required:
+    - email
+    - otp
+    type: object
+  dto.VerifyOTPSuccessExample:
+    properties:
+      data:
+        example: token
+        type: string
+      message:
+        example: OTP is Valid
+        type: string
+      status_code:
+        example: 200
+        type: integer
+    type: object
+  dto.VerifyOTPUnauthorizedExample:
+    properties:
+      message:
+        example: OTP is invalid
+        type: string
+      status_code:
+        example: 401
+        type: integer
+    type: object
+host: localhost:8081
+info:
+  contact:
+    email: support@swagger.io
+    name: API Support
+    url: http://www.swagger.io/support
+  description: Authentication service API for user management, registration, login,
+    and verification
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+  termsOfService: http://swagger.io/terms/
+  title: Auth Service API
+  version: "1.0"
+paths:
+  /change-password:
+    patch:
+      consumes:
+      - application/json
+      description: Change Password from reset password.
+      parameters:
+      - description: User ID
+        in: query
+        name: userId
+        required: true
+        type: string
+      - description: Reset Password Token
+        in: query
+        name: resetPasswordToken
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Success
+          schema:
+            $ref: '#/definitions/dto.ChangePasswordSuccessExample'
+        "400":
+          description: Bad request
+          schema:
+            $ref: '#/definitions/dto.GlobalInvalidInputExample'
+        "401":
+          description: Invalid Token
+          schema:
+            $ref: '#/definitions/dto.GlobalUnauthorizedErrorExample'
+        "404":
+          description: User not found
+          schema:
+            $ref: '#/definitions/dto.GlobalUserNotFoundExample'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.GlobalInternalServerErrorExample'
+      summary: Change Password
+      tags:
+      - Authentication
+  /login:
+    post:
+      consumes:
+      - application/json
+      description: Authenticate user with email and password. If 2FA is enabled for
+        the user, you will receive an OTP message and must verify the OTP before receiving
+        a JWT token. If 2FA is not enabled, you will receive a JWT token directly
+        upon successful login.
+      parameters:
+      - description: User login credentials
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Login successful - If 2FA is enabled, won't return data.
+          schema:
+            $ref: '#/definitions/dto.LoginSuccesExample'
+        "400":
+          description: Bad request - invalid input
+          schema:
+            $ref: '#/definitions/dto.GlobalInvalidInputExample'
+        "401":
+          description: Unauthorized - invalid credentials
+          schema:
+            $ref: '#/definitions/dto.GlobalUnauthorizedErrorExample'
+        "404":
+          description: User not found
+          schema:
+            $ref: '#/definitions/dto.GlobalUserNotFoundExample'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/dto.GlobalInternalServerErrorExample'
+      summary: User login
+      tags:
+      - Authentication
+  /logout:
+    post:
+      consumes:
+      - '*/*'
+      description: Logout endpoint. Requires Authorization header with Bearer token.
+      parameters:
+      - description: Bearer token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.GlobalUnauthorizedErrorExample'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.GlobalInternalServerErrorExample'
+      summary: User Logout
+      tags:
+      - Authentication
+  /register:
+    post:
+      consumes:
+      - multipart/form-data
+      description: Register User with several input and image as an optional.
+      parameters:
+      - description: User Register credentials
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.RegisterRequest'
+      - description: Profile image
+        in: formData
+        name: image
+        type: file
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Register Success
+          schema:
+            $ref: '#/definitions/dto.RegisterSuccessExample'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/dto.RegisterBadRequestExample'
+        "409":
+          description: Email Used
+          schema:
+            $ref: '#/definitions/dto.RegisterBadRequestExample'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.GlobalInternalServerErrorExample'
+      summary: User Register
+      tags:
+      - Authentication
+  /resend-verification-email:
+    post:
+      consumes:
+      - application/json
+      description: Resend Verification Email
+      parameters:
+      - description: Linked Email
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.ResendVerificationRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Resend Verification Email Success
+          schema:
+            $ref: '#/definitions/dto.ResendVerificationEmailSuccessExample'
+        "400":
+          description: Bad request
+          schema:
+            $ref: '#/definitions/dto.GlobalMissingEmailExample'
+        "404":
+          description: User not found
+          schema:
+            $ref: '#/definitions/dto.GlobalUserNotFoundExample'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/dto.VerifyEmailConflictExample'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/dto.GlobalInternalServerErrorExample'
+      summary: Resend Verification Email
+      tags:
+      - Authentication
+  /resend-verification-otp:
+    post:
+      consumes:
+      - application/json
+      description: Resend Verification OTP
+      parameters:
+      - description: Body Request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.ResendVerificationRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Resend Verification OTP Success
+          schema:
+            $ref: '#/definitions/dto.ResendVerificationOTPSuccessExample'
+        "400":
+          description: Bad request
+          schema:
+            $ref: '#/definitions/dto.GlobalMissingEmailExample'
+        "401":
+          description: Unauthorized - Not Verified / 2FA disabled
+          schema:
+            $ref: '#/definitions/dto.GlobalUnauthorizedErrorExample'
+        "404":
+          description: User not found
+          schema:
+            $ref: '#/definitions/dto.GlobalUserNotFoundExample'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/dto.GlobalInternalServerErrorExample'
+      summary: Resend Verification OTP
+      tags:
+      - Authentication
+  /reset-password:
+    post:
+      consumes:
+      - application/json
+      description: Reset Password
+      parameters:
+      - description: Body Request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.ResetPasswordRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Reset Password Success
+          schema:
+            $ref: '#/definitions/dto.ResetPasswordSuccessExample'
+        "400":
+          description: Bad request
+          schema:
+            $ref: '#/definitions/dto.GlobalMissingEmailExample'
+        "401":
+          description: Unauthorized - Not Verified
+          schema:
+            $ref: '#/definitions/dto.GlobalUnauthorizedErrorExample'
+        "404":
+          description: User not found
+          schema:
+            $ref: '#/definitions/dto.GlobalUserNotFoundExample'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/dto.GlobalInternalServerErrorExample'
+      summary: Reset Password
+      tags:
+      - Authentication
+  /verify:
+    post:
+      consumes:
+      - '*/*'
+      description: Verification endpoint. Requires Authorization header with Bearer
+        token.
+      parameters:
+      - description: Bearer token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "204":
+          description: No Content
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.GlobalUnauthorizedErrorExample'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.GlobalInternalServerErrorExample'
+      summary: User Verification
+      tags:
+      - Authentication
+  /verify-email:
+    get:
+      consumes:
+      - '*/*'
+      description: Email Verification Endpoint. Requires userId and (token or changeEmailToken)
+        in the query.
+      parameters:
+      - description: User ID
+        in: query
+        name: userId
+        required: true
+        type: string
+      - description: Verification token
+        in: query
+        name: token
+        type: string
+      - description: Change email token
+        in: query
+        name: changeEmailToken
+        type: string
+      - description: Bearer token
+        in: header
+        name: Authorization
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Success
+          schema:
+            $ref: '#/definitions/dto.VerifyEmailSuccessExample'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.GlobalUnauthorizedErrorExample'
+        "404":
+          description: User / verification token Not Found
+          schema:
+            $ref: '#/definitions/dto.GlobalUserNotFoundExample'
+        "409":
+          description: Conflict
+          schema:
+            $ref: '#/definitions/dto.VerifyEmailConflictExample'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/dto.GlobalInternalServerErrorExample'
+      summary: Email Verification
+      tags:
+      - Authentication
+  /verify-otp:
+    post:
+      consumes:
+      - application/json
+      description: Verify OTP
+      parameters:
+      - description: Body Request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/dto.VerifyOTPRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Resend Verification Email Success
+          schema:
+            $ref: '#/definitions/dto.VerifyOTPSuccessExample'
+        "400":
+          description: Bad request
+          schema:
+            $ref: '#/definitions/dto.GlobalInvalidInputExample'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/dto.VerifyOTPUnauthorizedExample'
+        "404":
+          description: User/otp not found
+          schema:
+            $ref: '#/definitions/dto.GlobalUserNotFoundExample'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/dto.GlobalInternalServerErrorExample'
+      summary: Verify OTP
+      tags:
+      - Authentication
+securityDefinitions:
+  BearerAuth:
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

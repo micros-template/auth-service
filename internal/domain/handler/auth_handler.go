@@ -39,6 +39,19 @@ func New(authService service.AuthService, logger zerolog.Logger) AuthHandler {
 	}
 }
 
+// @Summary Change Password
+// @Description Change Password from reset password.
+// @Tags Authentication
+// @Accept json
+// @Produce json
+// @Param userId query string true "User ID"
+// @Param resetPasswordToken query string true "Reset Password Token"
+// @Success 200 {object} dto.ChangePasswordSuccessExample "Success"
+// @Failure 400 {object} dto.GlobalInvalidInputExample "Bad request"
+// @Failure 401 {object} dto.GlobalUnauthorizedErrorExample "Invalid Token"
+// @Failure 404 {object} dto.GlobalUserNotFoundExample  "User not found"
+// @Failure 500 {object} dto.GlobalInternalServerErrorExample "Internal Server Error"
+// @Router /change-password [patch]
 func (a *authHandler) ChangePassword(ctx *gin.Context) {
 	userId := ctx.Query("userid")
 	resetPasswordtoken := ctx.Query("resetPasswordToken")
@@ -85,6 +98,18 @@ func (a *authHandler) ChangePassword(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, res)
 }
 
+// @Summary Reset Password
+// @Description Reset Password
+// @Tags Authentication
+// @Accept json
+// @Produce json
+// @Param request body dto.ResetPasswordRequest true "Body Request"
+// @Success 200 {object} dto.ResetPasswordSuccessExample "Reset Password Success"
+// @Failure 400 {object} dto.GlobalMissingEmailExample "Bad request"
+// @Failure 401 {object} dto.GlobalUnauthorizedErrorExample "Unauthorized - Not Verified"
+// @Failure 404 {object} dto.GlobalUserNotFoundExample "User not found"
+// @Failure 500 {object} dto.GlobalInternalServerErrorExample "Internal server error
+// @Router /reset-password [post]
 func (a *authHandler) ResetPassword(ctx *gin.Context) {
 	var req dto.ResetPasswordRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
@@ -121,6 +146,18 @@ func (a *authHandler) ResetPassword(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, res)
 }
 
+// @Summary Resend Verification OTP
+// @Description Resend Verification OTP
+// @Tags Authentication
+// @Accept json
+// @Produce json
+// @Param request body dto.ResendVerificationRequest true "Body Request"
+// @Success 200 {object} dto.ResendVerificationOTPSuccessExample "Resend Verification OTP Success"
+// @Failure 400 {object} dto.GlobalMissingEmailExample "Bad request"
+// @Failure 401 {object} dto.GlobalUnauthorizedErrorExample "Unauthorized - Not Verified / 2FA disabled"
+// @Failure 404 {object} dto.GlobalUserNotFoundExample "User not found
+// @Failure 500 {object} dto.GlobalInternalServerErrorExample "Internal server error
+// @Router /resend-verification-otp [post]
 func (a *authHandler) ResendVerificationOTP(ctx *gin.Context) {
 	var req dto.ResendVerificationRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
@@ -159,6 +196,18 @@ func (a *authHandler) ResendVerificationOTP(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, res)
 }
 
+// @Summary Verify OTP
+// @Description Verify OTP
+// @Tags Authentication
+// @Accept json
+// @Produce json
+// @Param request body dto.VerifyOTPRequest true "Body Request"
+// @Success 200 {object} dto.VerifyOTPSuccessExample "Resend Verification Email Success"
+// @Failure 400 {object} dto.GlobalInvalidInputExample "Bad request"
+// @Failure 401 {object} dto.VerifyOTPUnauthorizedExample "Unauthorized"
+// @Failure 404 {object} dto.GlobalUserNotFoundExample "User/otp not found
+// @Failure 500 {object} dto.GlobalInternalServerErrorExample "Internal server error
+// @Router /verify-otp [post]
 func (a *authHandler) VerifyOTP(ctx *gin.Context) {
 	var req dto.VerifyOTPRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
@@ -198,6 +247,18 @@ func (a *authHandler) VerifyOTP(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, res)
 }
 
+// @Summary Resend Verification Email
+// @Description Resend Verification Email
+// @Tags Authentication
+// @Accept json
+// @Produce json
+// @Param request body dto.ResendVerificationRequest true "Linked Email"
+// @Success 200 {object} dto.ResendVerificationEmailSuccessExample "Resend Verification Email Success"
+// @Failure 400 {object} dto.GlobalMissingEmailExample "Bad request"
+// @Failure 409 {object} dto.VerifyEmailConflictExample  "Conflict"
+// @Failure 404 {object} dto.GlobalUserNotFoundExample "User not found
+// @Failure 500 {object} dto.GlobalInternalServerErrorExample "Internal server error
+// @Router /resend-verification-email [post]
 func (a *authHandler) ResendVerficationEmail(ctx *gin.Context) {
 	var req dto.ResendVerificationRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
@@ -237,6 +298,21 @@ func (a *authHandler) ResendVerficationEmail(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, res)
 }
 
+// @Summary Email Verification
+// @Description Email Verification Endpoint. Requires userId and (token or changeEmailToken) in the query.
+// @Tags Authentication
+// @Accept */*
+// @Produce json
+// @Param userId query string true "User ID"
+// @Param token query string false "Verification token"
+// @Param changeEmailToken query string false "Change email token"
+// @Param Authorization header string true "Bearer token"
+// @Success 200 {object} dto.VerifyEmailSuccessExample "Success"
+// @Failure 401 {object} dto.GlobalUnauthorizedErrorExample "Unauthorized"
+// @Failure 404 {object} dto.GlobalUserNotFoundExample  "User / verification token Not Found"
+// @Failure 409 {object} dto.VerifyEmailConflictExample  "Conflict"
+// @Failure 500 {object} dto.GlobalInternalServerErrorExample "Internal Server Error"
+// @Router /verify-email [get]
 func (a *authHandler) VerifyEmail(ctx *gin.Context) {
 	userId := ctx.Query("userid")
 	token := ctx.Query("token")
@@ -289,6 +365,16 @@ func (a *authHandler) VerifyEmail(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, res)
 }
 
+// @Summary User Verification
+// @Description Verification endpoint. Requires Authorization header with Bearer token.
+// @Tags Authentication
+// @Accept */*
+// @Produce json
+// @Param Authorization header string true "Bearer token"
+// @Success 204 "No Content"
+// @Failure 401 {object} dto.GlobalUnauthorizedErrorExample "Unauthorized"
+// @Failure 500 {object} dto.GlobalInternalServerErrorExample "Internal Server Error"
+// @Router /verify [post]
 func (a *authHandler) Verify(ctx *gin.Context) {
 	token := ctx.GetHeader("Authorization")
 	if token == "" {
@@ -324,6 +410,16 @@ func (a *authHandler) Verify(ctx *gin.Context) {
 	ctx.AbortWithStatus(http.StatusNoContent)
 }
 
+// @Summary User Logout
+// @Description Logout endpoint. Requires Authorization header with Bearer token.
+// @Tags Authentication
+// @Accept */*
+// @Produce json
+// @Param Authorization header string true "Bearer token"
+// @Success 204 "No Content"
+// @Failure 401 {object} dto.GlobalUnauthorizedErrorExample "Unauthorized"
+// @Failure 500 {object} dto.GlobalInternalServerErrorExample "Internal Server Error"
+// @Router /logout [post]
 func (a *authHandler) Logout(ctx *gin.Context) {
 	token := ctx.GetHeader("Authorization")
 	if token == "" {
@@ -355,6 +451,18 @@ func (a *authHandler) Logout(ctx *gin.Context) {
 	ctx.AbortWithStatus(http.StatusNoContent)
 }
 
+// @Summary User Register
+// @Description Register User with several input and image as an optional.
+// @Tags Authentication
+// @Accept multipart/form-data
+// @Produce json
+// @Param request body dto.RegisterRequest true "User Register credentials"
+// @Param image formData file false "Profile image"
+// @Success 200 {object} dto.RegisterSuccessExample  "Register Success
+// @Failure 400 {object} dto.RegisterBadRequestExample  "Bad Request
+// @Failure 409 {object} dto.RegisterBadRequestExample  "Email Used
+// @Failure 500 {object} dto.GlobalInternalServerErrorExample "Internal Server Error
+// @Router /register [post]
 func (a *authHandler) Register(ctx *gin.Context) {
 	var req dto.RegisterRequest
 	if err := ctx.ShouldBind(&req); err != nil {
@@ -414,6 +522,18 @@ func (a *authHandler) Register(ctx *gin.Context) {
 	ctx.JSON(http.StatusCreated, res)
 }
 
+// @Summary User login
+// @Description Authenticate user with email and password. If 2FA is enabled for the user, you will receive an OTP message and must verify the OTP before receiving a JWT token. If 2FA is not enabled, you will receive a JWT token directly upon successful login.
+// @Tags Authentication
+// @Accept json
+// @Produce json
+// @Param request body dto.LoginRequest true "User login credentials"
+// @Success 200 {object} dto.LoginSuccesExample "Login successful - If 2FA is enabled, won't return data.
+// @Failure 400 {object} dto.GlobalInvalidInputExample "Bad request - invalid input
+// @Failure 401 {object} dto.GlobalUnauthorizedErrorExample "Unauthorized - invalid credentials
+// @Failure 404 {object} dto.GlobalUserNotFoundExample "User not found
+// @Failure 500 {object} dto.GlobalInternalServerErrorExample "Internal server error
+// @Router /login [post]
 func (a *authHandler) Login(ctx *gin.Context) {
 	var req dto.LoginRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {

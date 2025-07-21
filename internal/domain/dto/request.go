@@ -5,7 +5,7 @@ import "mime/multipart"
 type (
 	RegisterRequest struct {
 		FullName        string                `form:"full_name" binding:"required,min=1,max=100"`
-		Image           *multipart.FileHeader `form:"image" `
+		Image           *multipart.FileHeader `form:"image" swaggerignore:"true"`
 		Email           string                `form:"email" binding:"required,email"`
 		Password        string                `form:"password" binding:"required,min=8"`
 		ConfirmPassword string                `form:"confirm_password" binding:"required,min=8"`
