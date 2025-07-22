@@ -10,7 +10,7 @@ import (
 )
 
 func AuthRoutes(r *gin.Engine, ah AuthHandler) *gin.Engine {
-	docs.SwaggerInfo.BasePath = "/api/v1"
+	docs.SwaggerInfo.BasePath = "/api/v1/auth"
 	r.GET("/swagger/*any", ginSwagger.WrapHandler(swaggerfiles.Handler))
 	r.GET("/healthy", func(ctx *gin.Context) {
 		ctx.JSON(http.StatusOK, "Healthy")
