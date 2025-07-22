@@ -303,10 +303,10 @@ func (a *authHandler) ResendVerficationEmail(ctx *gin.Context) {
 // @Tags Authentication
 // @Accept */*
 // @Produce json
+// @Param Authorization header string true "Bearer token"
 // @Param userId query string true "User ID"
 // @Param token query string false "Verification token"
 // @Param changeEmailToken query string false "Change email token"
-// @Param Authorization header string true "Bearer token"
 // @Success 200 {object} dto.VerifyEmailSuccessExample "Success"
 // @Failure 401 {object} dto.GlobalUnauthorizedErrorExample "Unauthorized"
 // @Failure 404 {object} dto.GlobalUserNotFoundExample  "User / verification token Not Found"
@@ -456,7 +456,7 @@ func (a *authHandler) Logout(ctx *gin.Context) {
 // @Tags Authentication
 // @Accept multipart/form-data
 // @Produce json
-// @Param request body dto.RegisterRequest true "User Register credentials"
+// @Param request formData dto.RegisterRequest true "User Register credentials"
 // @Param image formData file false "Profile image"
 // @Success 200 {object} dto.RegisterSuccessExample  "Register Success
 // @Failure 400 {object} dto.RegisterBadRequestExample  "Bad Request
