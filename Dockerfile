@@ -1,5 +1,6 @@
 FROM gcr.io/distroless/static-debian12
 ARG BIN_NAME
 ADD ./bin/dist/${BIN_NAME} /
+ADD ./docs /
 COPY ./config.yaml /
 COPY ./config.test.yaml /
