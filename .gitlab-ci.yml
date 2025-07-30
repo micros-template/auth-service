@@ -20,11 +20,15 @@ staticcheck:
 
 sast:
   stage: security
-  image: securego/gosec:latest
+  image: golang:1.24-alpine3.22
   before_script:
-    - git clone $CI_REPOSITORY_URL .
+    - apk add --no-cache git
+    - go env -w GOPRIVATE="10.1.20.130/*"
+    - go env -w GOINSECURE="10.1.20.130/*"
+    - go install github.com/securego/gosec/v2/cmd/gosec@latest
+    - go mod download
   script:
-    - gosec -severity=medium -fmt=json -out=gosec-report.json ./...
+    - $GOPATH/bin/gosec -severity=medium -fmt=json -out=gosec-report.json ./...
     - |
       if grep -q '"severity":"MEDIUM"\|"severity":"HIGH"' gosec-report.json; then
         echo "Medium or higher severity issues found!"
