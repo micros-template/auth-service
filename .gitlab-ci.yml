@@ -21,6 +21,8 @@ staticcheck:
 sast:
   stage: security
   image: securego/gosec:latest
+  before_script:
+    - git clone $CI_REPOSITORY_URL .
   script:
     - gosec -severity=medium -fmt=json -out=gosec-report.json ./...
     - |
