@@ -46,8 +46,9 @@ func (s *Server) Run(ctx context.Context) {
 			router.Use(gin.Recovery())
 			handler.AuthRoutes(router, ah)
 			srv := &http.Server{
-				Addr:    s.Address,
-				Handler: router,
+				Addr:              s.Address,
+				Handler:           router,
+				ReadHeaderTimeout: 5 * time.Second,
 			}
 
 			go func() {

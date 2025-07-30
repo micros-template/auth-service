@@ -1,5 +1,6 @@
 stages:
   - lint
+  - security
   - test
   - build
   - post-pipeline
@@ -16,6 +17,18 @@ staticcheck:
   script:
     - go install honnef.co/go/tools/cmd/staticcheck@latest
     - staticcheck ./...
+
+sast:
+  stage: security
+  image: securego/gosec:latest
+  script:
+    - gosec -severity=medium -fmt=json -out=gosec-report.json ./...
+    - |
+      if grep -q '"severity":"MEDIUM"\|"severity":"HIGH"' gosec-report.json; then
+        echo "Medium or higher severity issues found!"
+        exit 1
+      fi
+  allow_failure: false
 
 build_test_image:
   stage: test
@@ -76,7 +89,7 @@ update_version:
     - VERSION=$(cat VERSION)
     - git clone http://$DROPPING_VERSIONING_TOKEN@10.1.20.130/dropping/versioning.git/
     - cd versioning
-    - yq e '.["auth_service_version"] = "'$VERSION'"' -i version.yaml 
+    - yq e '.["auth_service_version"] = "'$VERSION'"' -i version.yaml
     - git config user.email "ci@local"
     - git config user.name "CI Bot"
     - git add version.yaml
