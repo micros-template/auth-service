@@ -37,6 +37,7 @@ sast:
   allow_failure: false
 
 sonarqube-check:
+  stage: security
   image:
     name: sonarsource/sonar-scanner-cli:latest
     entrypoint: [""]
