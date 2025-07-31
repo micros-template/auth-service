@@ -20,7 +20,7 @@ staticcheck:
 
 golangci-lint:
   stage: lint
-  image: golangci/golangci-lint:v1.55.2-alpine
+  image: golangci/golangci-lint:v2.3-alpine-amd64
   before_script:
     - apk add --no-cache git
     - go env -w GOPRIVATE="10.1.20.130/*"
