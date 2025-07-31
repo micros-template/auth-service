@@ -54,7 +54,9 @@ func (r *RegisterHandlerSuite) TestAuthHandler_RegisterHandler_Success() {
 	if err != nil {
 		log.Fatal("failed to create image data")
 	}
-	formWriter.Close()
+	if err := formWriter.Close(); err != nil {
+		log.Fatal("failed to close form writer")
+	}
 
 	input := dto.RegisterRequest{
 		FullName:        "test-full-name",
@@ -99,7 +101,9 @@ func (r *RegisterHandlerSuite) TestAuthHandler_RegisterHandler_MissingInput() {
 	if err != nil {
 		log.Fatal("failed to create image data")
 	}
-	formWriter.Close()
+	if err := formWriter.Close(); err != nil {
+		log.Fatal("failed to close form writer")
+	}
 
 	request := httptest.NewRequest(http.MethodPost, "/register", reqBody)
 	request.Header.Set("Content-Type", formWriter.FormDataContentType())
@@ -128,7 +132,9 @@ func (r *RegisterHandlerSuite) TestAuthHandler_RegisterHandler_EmailAlreadyExist
 	if err != nil {
 		log.Fatal("failed to create image data")
 	}
-	formWriter.Close()
+	if err := formWriter.Close(); err != nil {
+		log.Fatal("failed to close form writer")
+	}
 
 	input := dto.RegisterRequest{
 		FullName:        "test-full-name",
@@ -174,8 +180,9 @@ func (r *RegisterHandlerSuite) TestAuthHandler_RegisterHandler_WrongImageExtensi
 	if err != nil {
 		log.Fatal("failed to create image data")
 	}
-	formWriter.Close()
-
+	if err := formWriter.Close(); err != nil {
+		log.Fatal("failed to close form writer")
+	}
 	input := dto.RegisterRequest{
 		FullName:        "test-full-name",
 		Image:           &multipart.FileHeader{},
@@ -220,7 +227,9 @@ func (r *RegisterHandlerSuite) TestAuthHandler_RegisterHandler_ImageSizeExceeded
 	if err != nil {
 		log.Fatal("failed to create image data")
 	}
-	formWriter.Close()
+	if err := formWriter.Close(); err != nil {
+		log.Fatal("failed to close form writer")
+	}
 
 	input := dto.RegisterRequest{
 		FullName:        "test-full-name",
@@ -266,7 +275,9 @@ func (r *RegisterHandlerSuite) TestAuthHandler_RegisterHandler_PasswordAndConfir
 	if err != nil {
 		log.Fatal("failed to create image data")
 	}
-	formWriter.Close()
+	if err := formWriter.Close(); err != nil {
+		log.Fatal("failed to close form writer")
+	}
 
 	input := dto.RegisterRequest{
 		FullName:        "test-full-name",

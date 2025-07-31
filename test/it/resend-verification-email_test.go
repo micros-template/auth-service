@@ -127,7 +127,6 @@ func (r *ResendVerificationEmailITSuite) SetupSuite() {
 	r.gatewayContainer = gatewayContainer
 	time.Sleep(time.Second)
 
-
 }
 func (r *ResendVerificationEmailITSuite) TearDownSuite() {
 	if err := r.userPgContainer.Terminate(r.ctx); err != nil {
@@ -184,7 +183,9 @@ func (r *ResendVerificationEmailITSuite) TestResendVerificationEmailIT_Success()
 
 	r.Equal(http.StatusCreated, response.StatusCode)
 	r.Contains(string(byteBody), "Register Success. Check your email for verification.")
-	response.Body.Close()
+	if err := response.Body.Close(); err != nil {
+		r.T().Errorf("error closing response body: %v", err)
+	}
 
 	time.Sleep(time.Second) //give a time for auth_db update the user
 
@@ -240,7 +241,6 @@ func (r *ResendVerificationEmailITSuite) TestResendVerificationEmailIT_MissingBo
 func (r *ResendVerificationEmailITSuite) TestResendVerificationEmailIT_AlreadyVerified() {
 
 	// register
-	reqBody := &bytes.Buffer{}
 
 	email := fmt.Sprintf("test+%d@example.com", time.Now().UnixNano())
 
@@ -254,8 +254,9 @@ func (r *ResendVerificationEmailITSuite) TestResendVerificationEmailIT_AlreadyVe
 
 	r.Equal(http.StatusCreated, response.StatusCode)
 	r.Contains(string(byteBody), "Register Success. Check your email for verification.")
-	response.Body.Close()
-
+	if err := response.Body.Close(); err != nil {
+		r.T().Errorf("error closing response body: %v", err)
+	}
 	time.Sleep(time.Second) //give a time for auth_db update the user
 
 	// verify email
@@ -279,7 +280,7 @@ func (r *ResendVerificationEmailITSuite) TestResendVerificationEmailIT_AlreadyVe
 	time.Sleep(time.Second) //give a time for auth_db update the user
 
 	// resend
-	reqBody = &bytes.Buffer{}
+	reqBody := &bytes.Buffer{}
 
 	encoder := gin.H{
 		"email": email,

@@ -40,7 +40,9 @@ func (m *GRPCClientManager) CloseAllConnections() {
 	defer m.mu.Unlock()
 
 	for address, conn := range m.connections {
-		conn.Close()
+		if err := conn.Close(); err != nil {
+			log.Default().Printf("failed close grpc connection: %v", err)
+		}
 		delete(m.connections, address)
 	}
 }

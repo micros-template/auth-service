@@ -159,7 +159,9 @@ func (r *RegisterITSuite) TestRegisterIT_Success() {
 
 	r.Equal(http.StatusCreated, response.StatusCode)
 	r.Contains(string(byteBody), "Register Success. Check your email for verification.")
-	response.Body.Close()
+	if err := response.Body.Close(); err != nil {
+		r.T().Errorf("error closing response body: %v", err)
+	}
 }
 
 func (r *RegisterITSuite) TestRegisterIT_MissingBody() {
@@ -169,9 +171,9 @@ func (r *RegisterITSuite) TestRegisterIT_MissingBody() {
 	_ = formWriter.WriteField("email", "test@example.com")
 	_ = formWriter.WriteField("password", "password123")
 	_ = formWriter.WriteField("confirm_password", "password123")
-
-	formWriter.Close()
-
+	if err := formWriter.Close(); err != nil {
+		log.Fatal("failed to close form writer")
+	}
 	request, err := http.NewRequest(http.MethodPost, "http://localhost:9090/api/v1/auth/register", reqBody)
 	request.Header.Set("Content-Type", formWriter.FormDataContentType())
 	r.NoError(err)
@@ -185,7 +187,9 @@ func (r *RegisterITSuite) TestRegisterIT_MissingBody() {
 
 	r.Equal(http.StatusBadRequest, response.StatusCode)
 	r.Contains(string(byteBody), "invalid input")
-	response.Body.Close()
+	if err := response.Body.Close(); err != nil {
+		r.T().Errorf("error closing response body: %v", err)
+	}
 }
 
 func (r *RegisterITSuite) TestRegisterIT_EmailAlreadyExist() {
@@ -201,8 +205,9 @@ func (r *RegisterITSuite) TestRegisterIT_EmailAlreadyExist() {
 
 	r.Equal(http.StatusCreated, response.StatusCode)
 	r.Contains(string(byteBody), "Register Success. Check your email for verification.")
-	response.Body.Close()
-
+	if err := response.Body.Close(); err != nil {
+		r.T().Errorf("error closing response body: %v", err)
+	}
 	time.Sleep(time.Second)
 
 	secRequest := helper.Register(email, r.T())
@@ -216,7 +221,9 @@ func (r *RegisterITSuite) TestRegisterIT_EmailAlreadyExist() {
 
 	r.Equal(http.StatusConflict, secResponse.StatusCode)
 	r.Contains(string(secByteBody), "user with this email exist")
-	response.Body.Close()
+	if err := response.Body.Close(); err != nil {
+		r.T().Errorf("error closing response body: %v", err)
+	}
 }
 
 func (r *RegisterITSuite) TestRegisterIT_WrongExtension() {
@@ -234,7 +241,9 @@ func (r *RegisterITSuite) TestRegisterIT_WrongExtension() {
 	if err != nil {
 		log.Fatal("failed to create image data")
 	}
-	formWriter.Close()
+	if err := formWriter.Close(); err != nil {
+		log.Fatal("failed to close form writer")
+	}
 
 	request, err := http.NewRequest(http.MethodPost, "http://localhost:9090/api/v1/auth/register", reqBody)
 	request.Header.Set("Content-Type", formWriter.FormDataContentType())
@@ -249,7 +258,9 @@ func (r *RegisterITSuite) TestRegisterIT_WrongExtension() {
 
 	r.Equal(http.StatusBadRequest, response.StatusCode)
 	r.Contains(string(byteBody), "error file extension, support jpg, jpeg, and png")
-	response.Body.Close()
+	if err := response.Body.Close(); err != nil {
+		r.T().Errorf("error closing response body: %v", err)
+	}
 }
 
 func (r *RegisterITSuite) TestRegisterIT_LimitSizeExceeded() {
@@ -267,7 +278,9 @@ func (r *RegisterITSuite) TestRegisterIT_LimitSizeExceeded() {
 	if err != nil {
 		log.Fatal("failed to create image data")
 	}
-	formWriter.Close()
+	if err := formWriter.Close(); err != nil {
+		log.Fatal("failed to close form writer")
+	}
 
 	request, err := http.NewRequest(http.MethodPost, "http://localhost:9090/api/v1/auth/register", reqBody)
 	request.Header.Set("Content-Type", formWriter.FormDataContentType())
@@ -282,7 +295,9 @@ func (r *RegisterITSuite) TestRegisterIT_LimitSizeExceeded() {
 
 	r.Equal(http.StatusBadRequest, response.StatusCode)
 	r.Contains(string(byteBody), "max size exceeded: 6mb")
-	response.Body.Close()
+	if err := response.Body.Close(); err != nil {
+		r.T().Errorf("error closing response body: %v", err)
+	}
 }
 
 func (r *RegisterITSuite) TestRegisterIT_PasswordAndConfirmPasswordDoesntMatch() {
@@ -300,7 +315,9 @@ func (r *RegisterITSuite) TestRegisterIT_PasswordAndConfirmPasswordDoesntMatch()
 	if err != nil {
 		log.Fatal("failed to create image data")
 	}
-	formWriter.Close()
+	if err := formWriter.Close(); err != nil {
+		log.Fatal("failed to close form writer")
+	}
 
 	request, err := http.NewRequest(http.MethodPost, "http://localhost:9090/api/v1/auth/register", reqBody)
 	request.Header.Set("Content-Type", formWriter.FormDataContentType())
@@ -315,5 +332,7 @@ func (r *RegisterITSuite) TestRegisterIT_PasswordAndConfirmPasswordDoesntMatch()
 
 	r.Equal(http.StatusBadRequest, response.StatusCode)
 	r.Contains(string(byteBody), "password and confirm password doesn't match")
-	response.Body.Close()
+	if err := response.Body.Close(); err != nil {
+		r.T().Errorf("error closing response body: %v", err)
+	}
 }

@@ -39,8 +39,16 @@ func (s *Server) Run(ctx context.Context) {
 			js jetstream.JetStream,
 		) {
 			defer grpcClientManager.CloseAllConnections()
-			defer redis.Close()
-			defer nc.Drain()
+			defer func() {
+				if err := redis.Close(); err != nil {
+					logger.Error().Err(err).Msg("Failed to close Redis client")
+				}
+			}()
+			defer func() {
+				if err := nc.Drain(); err != nil {
+					logger.Error().Err(err).Msg("Failed to drain nats client")
+				}
+			}()
 			defer pgx.Close()
 
 			router.Use(gin.Recovery())
@@ -66,7 +74,9 @@ func (s *Server) Run(ctx context.Context) {
 				for range 50 {
 					conn, err := net.DialTimeout("tcp", s.Address, 100*time.Millisecond)
 					if err == nil {
-						conn.Close()
+						if err := conn.Close(); err != nil {
+							logger.Fatal().Err(err).Msg("establish check connection failed to close")
+						}
 						s.ServerReady <- true
 						break
 					}

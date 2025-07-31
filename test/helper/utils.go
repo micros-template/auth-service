@@ -45,7 +45,9 @@ func Register(email string, t *testing.T) *http.Request {
 	if err != nil {
 		log.Fatal("failed to create image data")
 	}
-	formWriter.Close()
+	if err := formWriter.Close(); err != nil {
+		log.Fatal("failed to close form writer")
+	}
 
 	request, err := http.NewRequest(http.MethodPost, "http://localhost:9090/api/v1/auth/register", reqBody)
 	request.Header.Set("Content-Type", formWriter.FormDataContentType())
@@ -83,7 +85,9 @@ func RetrieveDataFromEmail(email, regex, types string, t *testing.T) string {
 
 		mailhogResp.Total = 0
 		err = json.NewDecoder(resp.Body).Decode(&mailhogResp)
-		resp.Body.Close()
+		if err := resp.Body.Close(); err != nil {
+			t.Errorf("error closing response body: %v", err)
+		}
 		assert.NoError(t, err)
 		if err != nil {
 			time.Sleep(2 * time.Second)

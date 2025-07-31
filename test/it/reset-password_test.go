@@ -182,7 +182,9 @@ func (r *ResetPasswordITSuite) TestResetPasswordIT_Success() {
 
 	r.Equal(http.StatusCreated, response.StatusCode)
 	r.Contains(string(byteBody), "Register Success. Check your email for verification.")
-	response.Body.Close()
+	if err := response.Body.Close(); err != nil {
+		r.T().Errorf("error closing response body: %v", err)
+	}
 
 	time.Sleep(time.Second) //give a time for auth_db update the user
 
@@ -264,7 +266,9 @@ func (r *ResetPasswordITSuite) TestResetPasswordIT_NotVerified() {
 
 	r.Equal(http.StatusCreated, response.StatusCode)
 	r.Contains(string(byteBody), "Register Success. Check your email for verification.")
-	response.Body.Close()
+	if err := response.Body.Close(); err != nil {
+		r.T().Errorf("error closing response body: %v", err)
+	}
 
 	time.Sleep(time.Second) //give a time for auth_db update the user
 

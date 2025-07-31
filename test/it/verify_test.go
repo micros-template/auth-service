@@ -179,7 +179,9 @@ func (v *VerifyITSuite) TestVerifyIT_Success() {
 
 	v.Equal(http.StatusCreated, response.StatusCode)
 	v.Contains(string(byteBody), "Register Success. Check your email for verification.")
-	response.Body.Close()
+	if err := response.Body.Close(); err != nil {
+		v.T().Errorf("error closing response body: %v", err)
+	}
 
 	time.Sleep(time.Second) //give a time for auth_db update the user
 
@@ -227,7 +229,10 @@ func (v *VerifyITSuite) TestVerifyIT_Success() {
 
 	verifyResp, err := client.Do(verifyReq)
 	v.NoError(err)
-	defer verifyResp.Body.Close()
+
+	if err := verifyResp.Body.Close(); err != nil {
+		v.T().Errorf("error closing response body: %v", err)
+	}
 
 	v.Equal(http.StatusNoContent, verifyResp.StatusCode)
 }

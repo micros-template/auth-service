@@ -185,7 +185,9 @@ func (v *VerifyOTPITSuite) TestVerifyOTPIT_Success() {
 
 	v.Equal(http.StatusCreated, response.StatusCode)
 	v.Contains(string(byteBody), "Register Success. Check your email for verification.")
-	response.Body.Close()
+	if err := response.Body.Close(); err != nil {
+		v.T().Errorf("error closing response body: %v", err)
+	}
 
 	time.Sleep(time.Second) //give a time for auth_db update the user
 
@@ -233,7 +235,9 @@ func (v *VerifyOTPITSuite) TestVerifyOTPIT_Success() {
 	formWriter := multipart.NewWriter(reqBody)
 	_ = formWriter.WriteField("full_name", "test-full-name")
 	_ = formWriter.WriteField("two_factor_enabled", "true")
-	formWriter.Close()
+	if err := formWriter.Close(); err != nil {
+		log.Fatal("failed to close form writer")
+	}
 
 	request, err = http.NewRequest(http.MethodPatch, "http://localhost:9090/api/v1/user/", reqBody)
 	request.Header.Set("Content-Type", formWriter.FormDataContentType())
@@ -332,7 +336,9 @@ func (v *VerifyOTPITSuite) TestVerifyOTPIT_InvalidOTP() {
 
 	v.Equal(http.StatusCreated, response.StatusCode)
 	v.Contains(string(byteBody), "Register Success. Check your email for verification.")
-	response.Body.Close()
+	if err := response.Body.Close(); err != nil {
+		v.T().Errorf("error closing response body: %v", err)
+	}
 
 	time.Sleep(time.Second) //give a time for auth_db update the user
 
@@ -380,7 +386,9 @@ func (v *VerifyOTPITSuite) TestVerifyOTPIT_InvalidOTP() {
 	formWriter := multipart.NewWriter(reqBody)
 	_ = formWriter.WriteField("full_name", "test-full-name")
 	_ = formWriter.WriteField("two_factor_enabled", "true")
-	formWriter.Close()
+	if err := formWriter.Close(); err != nil {
+		log.Fatal("failed to close form writer")
+	}
 
 	request, err = http.NewRequest(http.MethodPatch, "http://localhost:9090/api/v1/user/", reqBody)
 	request.Header.Set("Authorization", "Bearer "+jwt)
@@ -456,7 +464,9 @@ func (v *VerifyOTPITSuite) TestVerifyOTPIT_KeyNotFound() {
 
 	v.Equal(http.StatusCreated, response.StatusCode)
 	v.Contains(string(byteBody), "Register Success. Check your email for verification.")
-	response.Body.Close()
+	if err := response.Body.Close(); err != nil {
+		v.T().Errorf("error closing response body: %v", err)
+	}
 
 	time.Sleep(time.Second) //give a time for auth_db update the user
 

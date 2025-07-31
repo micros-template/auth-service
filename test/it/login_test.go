@@ -185,7 +185,10 @@ func (l *LoginITSuite) TestLoginIT_Success() {
 
 	l.Equal(http.StatusCreated, response.StatusCode)
 	l.Contains(string(byteBody), "Register Success. Check your email for verification.")
-	response.Body.Close()
+
+	if err := response.Body.Close(); err != nil {
+		l.T().Errorf("error closing response body: %v", err)
+	}
 
 	time.Sleep(time.Second) //give a time for auth_db update the user
 
@@ -219,7 +222,9 @@ func (l *LoginITSuite) TestLoginIT_Success() {
 	l.Equal(http.StatusOK, response.StatusCode)
 	l.NoError(err)
 	l.Contains(string(byteBody), "Login Success")
-	response.Body.Close()
+	if err := response.Body.Close(); err != nil {
+		l.T().Errorf("error closing response body: %v", err)
+	}
 }
 
 func (l *LoginITSuite) TestLoginIT_Success2FA() {
@@ -237,8 +242,9 @@ func (l *LoginITSuite) TestLoginIT_Success2FA() {
 
 	l.Equal(http.StatusCreated, response.StatusCode)
 	l.Contains(string(byteBody), "Register Success. Check your email for verification.")
-	response.Body.Close()
-
+	if err := response.Body.Close(); err != nil {
+		l.T().Errorf("error closing response body: %v", err)
+	}
 	time.Sleep(time.Second) //give a time for auth_db update the user
 
 	// verify email
@@ -285,7 +291,9 @@ func (l *LoginITSuite) TestLoginIT_Success2FA() {
 	formWriter := multipart.NewWriter(reqBody)
 	_ = formWriter.WriteField("full_name", "test-full-name")
 	_ = formWriter.WriteField("two_factor_enabled", "true")
-	formWriter.Close()
+	if err := formWriter.Close(); err != nil {
+		log.Fatal("failed to close form writer")
+	}
 
 	request, err = http.NewRequest(http.MethodPatch, "http://localhost:9090/api/v1/user/", reqBody)
 	request.Header.Set("Content-Type", formWriter.FormDataContentType())
@@ -367,7 +375,9 @@ func (l *LoginITSuite) TestLoginIT_MissingBody() {
 	l.Equal(http.StatusBadRequest, response.StatusCode)
 	l.NoError(err)
 	l.Contains(string(byteBody), "invalid input")
-	response.Body.Close()
+	if err := response.Body.Close(); err != nil {
+		l.T().Errorf("error closing response body: %v", err)
+	}
 }
 
 func (l *LoginITSuite) TestLoginIT_NotVerified() {
@@ -384,7 +394,9 @@ func (l *LoginITSuite) TestLoginIT_NotVerified() {
 
 	l.Equal(http.StatusCreated, response.StatusCode)
 	l.Contains(string(byteBody), "Register Success. Check your email for verification.")
-	response.Body.Close()
+	if err := response.Body.Close(); err != nil {
+		l.T().Errorf("error closing response body: %v", err)
+	}
 
 	time.Sleep(time.Second) //give a time for auth_db update the user
 
@@ -400,7 +412,9 @@ func (l *LoginITSuite) TestLoginIT_NotVerified() {
 	l.Equal(http.StatusUnauthorized, response.StatusCode)
 	l.NoError(err)
 	l.Contains(string(byteBody), "user is not verified")
-	response.Body.Close()
+	if err := response.Body.Close(); err != nil {
+		l.T().Errorf("error closing response body: %v", err)
+	}
 }
 
 func (l *LoginITSuite) TestLoginIT_PasswordDoesntMatch() {
@@ -417,7 +431,9 @@ func (l *LoginITSuite) TestLoginIT_PasswordDoesntMatch() {
 
 	l.Equal(http.StatusCreated, response.StatusCode)
 	l.Contains(string(byteBody), "Register Success. Check your email for verification.")
-	response.Body.Close()
+	if err := response.Body.Close(); err != nil {
+		l.T().Errorf("error closing response body: %v", err)
+	}
 
 	time.Sleep(time.Second) //give a time for auth_db update the user
 
@@ -460,7 +476,9 @@ func (l *LoginITSuite) TestLoginIT_PasswordDoesntMatch() {
 	l.Equal(http.StatusUnauthorized, response.StatusCode)
 	l.NoError(err)
 	l.Contains(string(byteBody), "email or password is wrong")
-	response.Body.Close()
+	if err := response.Body.Close(); err != nil {
+		l.T().Errorf("error closing response body: %v", err)
+	}
 }
 
 func (l *LoginITSuite) TestLoginIT_UserNotfound() {
@@ -476,5 +494,7 @@ func (l *LoginITSuite) TestLoginIT_UserNotfound() {
 	l.Equal(http.StatusNotFound, response.StatusCode)
 	l.NoError(err)
 	l.Contains(string(byteBody), "user not found")
-	response.Body.Close()
+	if err := response.Body.Close(); err != nil {
+		l.T().Errorf("error closing response body: %v", err)
+	}
 }

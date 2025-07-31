@@ -127,7 +127,6 @@ func (l *LogoutITSuite) SetupSuite() {
 	l.gatewayContainer = gatewayContainer
 	time.Sleep(time.Second)
 
-
 }
 func (l *LogoutITSuite) TearDownSuite() {
 	if err := l.userPgContainer.Terminate(l.ctx); err != nil {
@@ -183,7 +182,9 @@ func (l *LogoutITSuite) TestLogoutIT_Success() {
 
 	l.Equal(http.StatusCreated, response.StatusCode)
 	l.Contains(string(byteBody), "Register Success. Check your email for verification.")
-	response.Body.Close()
+	if err := response.Body.Close(); err != nil {
+		l.T().Errorf("error closing response body: %v", err)
+	}
 
 	time.Sleep(time.Second) //give a time for auth_db update the user
 
@@ -231,7 +232,9 @@ func (l *LogoutITSuite) TestLogoutIT_Success() {
 
 	verifyResp, err := client.Do(verifyReq)
 	l.NoError(err)
-	defer verifyResp.Body.Close()
+	if err := response.Body.Close(); err != nil {
+		l.T().Errorf("error closing response body: %v", err)
+	}
 
 	l.Equal(http.StatusNoContent, verifyResp.StatusCode)
 }

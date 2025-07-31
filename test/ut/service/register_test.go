@@ -2,6 +2,7 @@ package service_test
 
 import (
 	"bytes"
+	"log"
 	"mime/multipart"
 	"testing"
 	"time"
@@ -66,8 +67,12 @@ func (r *RegisterServiceSuite) TestAuthService_RegisterService_Success() {
 	var buf bytes.Buffer
 	writer := multipart.NewWriter(&buf)
 	part, _ := writer.CreateFormFile("image", "test_image.jpg")
-	part.Write(imageData)
-	writer.Close()
+	if _, err := part.Write(imageData); err != nil {
+		r.T().Fatal("failed to write image data:", err)
+	}
+	if err := writer.Close(); err != nil {
+		log.Fatal("failed to close form writer")
+	}
 
 	reader := multipart.NewReader(&buf, writer.Boundary())
 	form, _ := reader.ReadForm(32 << 20)
@@ -123,8 +128,12 @@ func (r *RegisterServiceSuite) TestAuthService_RegisterService_WrongImageExtensi
 	var buf bytes.Buffer
 	writer := multipart.NewWriter(&buf)
 	part, _ := writer.CreateFormFile("image", "test_image.pdf")
-	part.Write(imageData)
-	writer.Close()
+	if _, err := part.Write(imageData); err != nil {
+		log.Fatal("failed to write image data:", err)
+	}
+	if err := writer.Close(); err != nil {
+		log.Fatal("failed to close form writer")
+	}
 
 	reader := multipart.NewReader(&buf, writer.Boundary())
 	form, _ := reader.ReadForm(32 << 20)
@@ -146,8 +155,12 @@ func (r *RegisterServiceSuite) TestAuthService_RegisterService_ImageSizeExceeded
 	var buf bytes.Buffer
 	writer := multipart.NewWriter(&buf)
 	part, _ := writer.CreateFormFile("image", "test_image.jpg")
-	part.Write(imageData)
-	writer.Close()
+	if _, err := part.Write(imageData); err != nil {
+		log.Fatal("failed to write image data:", err)
+	}
+	if err := writer.Close(); err != nil {
+		log.Fatal("failed to close form writer")
+	}
 
 	reader := multipart.NewReader(&buf, writer.Boundary())
 	form, _ := reader.ReadForm(32 << 20)
