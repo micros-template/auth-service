@@ -10,7 +10,7 @@ app:
   name: "test_app_name"
   url: "http://localhost:9090/api/v1"
   http:
-    port: 8081
+    port: 80
   grpc:
     service:
       user_service: test_user_service:50051
@@ -43,14 +43,14 @@ nats:
 
 jetstream:
   notification:
-    stream: 
+    stream:
       name: "notification_stream_test"
       description: "this is notification stream"
     subject:
       global: "test_notif.>"
       mail: "test_notif.email"
   event:
-    stream: 
+    stream:
       name: "event_stream_test"
       description: "this is event bus stream"
     consumer:
@@ -82,7 +82,7 @@ container:
   minio_version: "RELEASE.2025-05-24T17-08-30Z-cpuv1"
   mailhog_version: "v1.0.1"
   postgresql_version: "17.5-alpine3.22"
-  redis_version : "7.2"
+  redis_version: "7.2"
 
 script:
   nats_server: "../mocks/nats/nats-server.conf"

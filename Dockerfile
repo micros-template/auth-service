@@ -4,3 +4,5 @@ ADD ./bin/dist/${BIN_NAME} /
 ADD ./docs /
 COPY ./config.yaml /
 COPY ./config.test.yaml /
+
+EXPOSE 80
