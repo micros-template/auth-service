@@ -44,15 +44,15 @@ jetstream:
       mail: "notification.email"
   event:
     stream: 
-      name: "event_stream"
+      name: "eventbus_stream"
       description: "this is event bus stream"
     consumer:
       user_event:
         name: "auth-user_consumer"
-        subject: "event.user.*"
+        subject: "eventbus.user.*"
     subject:
-      global: "event.>"
-      event_bus: "event"
+      global: "eventbus.>"
+      event_bus: "eventbus"
 
 server:
   cors:
