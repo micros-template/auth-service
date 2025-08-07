@@ -9,23 +9,16 @@ import (
 	middleware "github.com/dropboks/sharedlib/middleware"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
-	"github.com/nats-io/nats.go/jetstream"
 	"github.com/rs/zerolog"
 	"github.com/spf13/viper"
 )
 
-func New(js jetstream.JetStream, zerolog zerolog.Logger) *gin.Engine {
+func New(logEmitter pkg.LogEmitter, zerolog zerolog.Logger) *gin.Engine {
 	env := os.Getenv("ENV")
 	if env == "production" {
 		gin.SetMode(gin.ReleaseMode)
 	}
 	r := gin.New()
-	streamName := viper.GetString("jetstream.log.stream.name")
-	streamDesc := viper.GetString("jetstream.log.stream.description")
-	globalSubject := viper.GetString("jetstream.log.subject.global")
-	subjectPrefix := viper.GetString("jetstream.log.subject.prefix")
-
-	logEmitter := pkg.NewLogEmitter(js, zerolog, streamName, streamDesc, globalSubject, subjectPrefix)
 	r.Use(middleware.AccessLogger(logEmitter, "auth_service", zerolog))
 
 	allowOrigins := viper.GetString("server.cors.allow_origins")

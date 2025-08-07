@@ -2,6 +2,7 @@ package di
 
 import (
 	_cache "10.1.20.130/dropping/auth-service/config/cache"
+	logemitter "10.1.20.130/dropping/auth-service/config/log_emitter"
 	"10.1.20.130/dropping/auth-service/config/logger"
 	mq "10.1.20.130/dropping/auth-service/config/message-queue"
 	"10.1.20.130/dropping/auth-service/config/router"
@@ -81,6 +82,10 @@ func BuildContainer() *dig.Container {
 	// auth handler
 	if err := container.Provide(handler.New); err != nil {
 		panic("Failed to provide repository: " + err.Error())
+	}
+	// log emitter
+	if err := container.Provide(logemitter.NewInfraLogEmitter); err != nil {
+		panic("Failed to provide log emitter: " + err.Error())
 	}
 	// router
 	if err := container.Provide(router.New); err != nil {
