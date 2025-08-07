@@ -60,6 +60,13 @@ jetstream:
     subject:
       global: "test_event.>"
       event_bus: "test_event"
+  log:
+    stream:
+      name: "log_stream"
+      description: "this is log stream"
+    subject:
+      global: "log.>"
+      prefix: "log"
 server:
   cors:
     allow_origins: "*"
