@@ -47,6 +47,10 @@ func BuildContainer() *dig.Container {
 	if err := container.Provide(_mq.NewNatsInfrastructure); err != nil {
 		panic("Failed to provide nats infrastructure: " + err.Error())
 	}
+	// log emitter
+	if err := container.Provide(logemitter.NewInfraLogEmitter); err != nil {
+		panic("Failed to provide log emitter: " + err.Error())
+	}
 	// user event consumer
 	if err := container.Provide(_mq.NewUserEventConsumerInfra); err != nil {
 		panic("Failed to provide user event consumer: " + err.Error())
@@ -82,10 +86,6 @@ func BuildContainer() *dig.Container {
 	// auth handler
 	if err := container.Provide(handler.New); err != nil {
 		panic("Failed to provide repository: " + err.Error())
-	}
-	// log emitter
-	if err := container.Provide(logemitter.NewInfraLogEmitter); err != nil {
-		panic("Failed to provide log emitter: " + err.Error())
 	}
 	// router
 	if err := container.Provide(router.New); err != nil {
