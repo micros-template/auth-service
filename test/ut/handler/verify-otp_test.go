@@ -5,12 +5,14 @@ import (
 	"encoding/json"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"10.1.20.130/dropping/auth-service/internal/domain/dto"
 	"10.1.20.130/dropping/auth-service/internal/domain/handler"
 	"10.1.20.130/dropping/auth-service/test/mocks"
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -18,18 +20,24 @@ type VerifyOTPHandlerSuite struct {
 	suite.Suite
 	authHandler     handler.AuthHandler
 	mockAuthService *mocks.MockAuthService
+	mockLogEmitter  *mocks.LoggerServiceUtilMock
 }
 
 func (l *VerifyOTPHandlerSuite) SetupSuite() {
 	logger := zerolog.Nop()
 	mockedAuthService := new(mocks.MockAuthService)
+	mockedLogEmitter := new(mocks.LoggerServiceUtilMock)
+
 	l.mockAuthService = mockedAuthService
-	l.authHandler = handler.New(mockedAuthService, logger)
+	l.mockLogEmitter = mockedLogEmitter
+	l.authHandler = handler.New(mockedAuthService, mockedLogEmitter, logger)
 }
 
 func (l *VerifyOTPHandlerSuite) SetupTest() {
 	l.mockAuthService.ExpectedCalls = nil
+	l.mockLogEmitter.ExpectedCalls = nil
 	l.mockAuthService.Calls = nil
+	l.mockLogEmitter.Calls = nil
 	gin.SetMode(gin.TestMode)
 }
 
@@ -57,15 +65,19 @@ func (l *VerifyOTPHandlerSuite) TestAuthHandler_VerifyOTPHandler_Success() {
 	ctx, _ := gin.CreateTestContext(w)
 	ctx.Request = request
 
+	l.mockLogEmitter.On("EmitLog", "INFO", mock.Anything).Return(nil)
 	l.mockAuthService.On("VerifyOTPService", input.OTP, input.Email).Return("mocked-token", nil)
 	l.authHandler.VerifyOTP(ctx)
 
 	l.Equal(200, w.Code)
 	l.Contains(w.Body.String(), "mocked-token")
 	l.mockAuthService.AssertExpectations(l.T())
+
+	time.Sleep(time.Second)
+	l.mockLogEmitter.AssertExpectations(l.T())
 }
 
-func (l *VerifyOTPHandlerSuite) TestAuthHandler_VerifyOTPHandler_MissingInput() {
+func (l *VerifyOTPHandlerSuite) TestAuthHandler_VerifyOTPHandler_InvalidInput() {
 	reqBody := &bytes.Buffer{}
 
 	encoder := gin.H{
@@ -79,10 +91,15 @@ func (l *VerifyOTPHandlerSuite) TestAuthHandler_VerifyOTPHandler_MissingInput() 
 	ctx, _ := gin.CreateTestContext(w)
 	ctx.Request = request
 
+	l.mockLogEmitter.On("EmitLog", "ERR", mock.Anything).Return(nil)
+
 	l.authHandler.VerifyOTP(ctx)
 
 	l.Equal(400, w.Code)
 	l.Contains(w.Body.String(), "invalid input")
+
+	time.Sleep(time.Second)
+	l.mockLogEmitter.AssertExpectations(l.T())
 }
 
 func (l *VerifyOTPHandlerSuite) TestAuthHandler_VerifyOTPHandler_InvalidOTP() {

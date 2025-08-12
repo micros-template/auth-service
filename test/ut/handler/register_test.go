@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"10.1.20.130/dropping/auth-service/internal/domain/dto"
 	"10.1.20.130/dropping/auth-service/internal/domain/handler"
@@ -21,18 +22,25 @@ type RegisterHandlerSuite struct {
 	suite.Suite
 	authHandler     handler.AuthHandler
 	mockAuthService *mocks.MockAuthService
+	mockLogEmitter  *mocks.LoggerServiceUtilMock
 }
 
 func (r *RegisterHandlerSuite) SetupSuite() {
 	logger := zerolog.Nop()
 	mockedAuthService := new(mocks.MockAuthService)
+	mockedLogEmitter := new(mocks.LoggerServiceUtilMock)
+
 	r.mockAuthService = mockedAuthService
-	r.authHandler = handler.New(mockedAuthService, logger)
+	r.mockLogEmitter = mockedLogEmitter
+	r.authHandler = handler.New(mockedAuthService, mockedLogEmitter, logger)
 }
 
 func (r *RegisterHandlerSuite) SetupTest() {
 	r.mockAuthService.ExpectedCalls = nil
+	r.mockLogEmitter.ExpectedCalls = nil
+
 	r.mockAuthService.Calls = nil
+	r.mockLogEmitter.Calls = nil
 	gin.SetMode(gin.TestMode)
 }
 
@@ -111,11 +119,15 @@ func (r *RegisterHandlerSuite) TestAuthHandler_RegisterHandler_MissingInput() {
 	w := httptest.NewRecorder()
 	ctx, _ := gin.CreateTestContext(w)
 	ctx.Request = request
+	r.mockLogEmitter.On("EmitLog", "ERR", mock.Anything).Return(nil)
 
 	r.authHandler.Register(ctx)
 
 	r.Equal(400, w.Code)
 	r.Contains(w.Body.String(), "invalid input")
+
+	time.Sleep(time.Second)
+	r.mockLogEmitter.AssertExpectations(r.T())
 }
 
 func (r *RegisterHandlerSuite) TestAuthHandler_RegisterHandler_EmailAlreadyExist() {

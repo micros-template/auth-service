@@ -12,6 +12,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/pashagolub/pgxmock/v4"
 	"github.com/rs/zerolog"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -19,6 +20,7 @@ type GetUserByEmailRepositorySuite struct {
 	suite.Suite
 	authRepository  repository.AuthRepository
 	mockRedisClient *mocks.MockRedisCache
+	mockLogEmitter  *mocks.LoggerServiceUtilMock
 	mockPgx         pgxmock.PgxPoolIface
 }
 
@@ -26,16 +28,20 @@ func (g *GetUserByEmailRepositorySuite) SetupSuite() {
 
 	logger := zerolog.Nop()
 	redisClient := new(mocks.MockRedisCache)
+	mockedLogEmitter := new(mocks.LoggerServiceUtilMock)
 	pgxMock, err := pgxmock.NewPool()
 	g.NoError(err)
 	g.mockPgx = pgxMock
 	g.mockRedisClient = redisClient
-	g.authRepository = repository.New(redisClient, pgxMock, logger)
+	g.mockLogEmitter = mockedLogEmitter
+	g.authRepository = repository.New(redisClient, pgxMock, mockedLogEmitter, logger)
 }
 
 func (g *GetUserByEmailRepositorySuite) SetupTest() {
 	g.mockRedisClient.ExpectedCalls = nil
+	g.mockLogEmitter.ExpectedCalls = nil
 	g.mockRedisClient.Calls = nil
+	g.mockLogEmitter.ExpectedCalls = nil
 }
 
 func TestGetUserByEmailRepositorySuite(t *testing.T) {
@@ -79,10 +85,14 @@ func (g *GetUserByEmailRepositorySuite) TestAuthRepository_GetUserByEmail_NotFou
 	email := "notfound@example.com"
 	query := `SELECT id, full_name, image, email, password, verified, two_factor_enabled FROM users WHERE email = \$1`
 	g.mockPgx.ExpectQuery(query).WithArgs(email).WillReturnError(pgx.ErrNoRows)
+	g.mockLogEmitter.On("EmitLog", "WARN", mock.Anything).Return(nil)
 
 	user, err := g.authRepository.GetUserByEmail(email)
 	g.Nil(user)
 	g.ErrorIs(err, dto.Err_NOTFOUND_USER_NOT_FOUND)
+
+	time.Sleep(time.Second)
+	g.mockLogEmitter.AssertExpectations(g.T())
 }
 
 func (g *GetUserByEmailRepositorySuite) TestAuthRepository_GetUserByEmail_ScanError() {
@@ -100,8 +110,12 @@ func (g *GetUserByEmailRepositorySuite) TestAuthRepository_GetUserByEmail_ScanEr
 	)
 	query := `SELECT id, full_name, image, email, password, verified, two_factor_enabled FROM users WHERE email = \$1`
 	g.mockPgx.ExpectQuery(query).WithArgs(email).WillReturnRows(rows)
+	g.mockLogEmitter.On("EmitLog", "ERR", mock.Anything).Return(nil)
 
 	user, err := g.authRepository.GetUserByEmail(email)
 	g.Nil(user)
 	g.ErrorIs(err, dto.Err_INTERNAL_FAILED_SCAN_USER)
+
+	time.Sleep(time.Second)
+	g.mockLogEmitter.AssertExpectations(g.T())
 }

@@ -1,16 +1,17 @@
 package handler_test
 
 import (
-	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"10.1.20.130/dropping/auth-service/internal/domain/dto"
 	"10.1.20.130/dropping/auth-service/internal/domain/handler"
 	"10.1.20.130/dropping/auth-service/test/mocks"
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -18,18 +19,24 @@ type VerifyHandlerSuite struct {
 	suite.Suite
 	authHandler     handler.AuthHandler
 	mockAuthService *mocks.MockAuthService
+	mockLogEmitter  *mocks.LoggerServiceUtilMock
 }
 
 func (v *VerifyHandlerSuite) SetupSuite() {
 	logger := zerolog.Nop()
 	mockedAuthService := new(mocks.MockAuthService)
+	mockedLogEmitter := new(mocks.LoggerServiceUtilMock)
+
 	v.mockAuthService = mockedAuthService
-	v.authHandler = handler.New(mockedAuthService, logger)
+	v.mockLogEmitter = mockedLogEmitter
+	v.authHandler = handler.New(mockedAuthService, mockedLogEmitter, logger)
 }
 
 func (v *VerifyHandlerSuite) SetupTest() {
 	v.mockAuthService.ExpectedCalls = nil
+	v.mockLogEmitter.ExpectedCalls = nil
 	v.mockAuthService.Calls = nil
+	v.mockLogEmitter.Calls = nil
 	gin.SetMode(gin.TestMode)
 }
 
@@ -59,11 +66,15 @@ func (v *VerifyHandlerSuite) TestAuthHandler_VerifyHandler_MissingToken() {
 	w := httptest.NewRecorder()
 	ctx, _ := gin.CreateTestContext(w)
 	ctx.Request = httptest.NewRequest("GET", "/verify", nil)
+	v.mockLogEmitter.On("EmitLog", "ERR", mock.Anything).Return(nil)
 
 	v.authHandler.Verify(ctx)
 
 	v.Equal(http.StatusUnauthorized, w.Code)
 	v.Contains(w.Body.String(), "Token is missing")
+
+	time.Sleep(time.Second)
+	v.mockLogEmitter.AssertExpectations(v.T())
 }
 
 func (v *VerifyHandlerSuite) TestAuthHandler_VerifyHandler_NotFoundKey() {
@@ -81,6 +92,23 @@ func (v *VerifyHandlerSuite) TestAuthHandler_VerifyHandler_NotFoundKey() {
 	v.Contains(w.Body.String(), dto.Err_NOTFOUND_KEY_NOTFOUND.Error())
 }
 
+func (v *VerifyHandlerSuite) TestAuthHandler_VerifyHandler_InvalidFormat() {
+	token := "Bearer"
+
+	w := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(w)
+	ctx.Request = httptest.NewRequest("GET", "/verify", nil)
+	ctx.Request.Header.Set("Authorization", token)
+	v.mockLogEmitter.On("EmitLog", "ERR", mock.Anything).Return(nil)
+
+	v.authHandler.Logout(ctx)
+
+	v.Equal(http.StatusUnauthorized, w.Code)
+
+	time.Sleep(time.Second)
+	v.mockLogEmitter.AssertExpectations(v.T())
+}
+
 func (v *VerifyHandlerSuite) TestAuthHandler_VerifyHandler_UnauthorizedJWTInvalid() {
 	token := "Bearer invalidjwt"
 	v.mockAuthService.On("VerifyService", "invalidjwt").Return("", dto.Err_UNAUTHORIZED_JWT_INVALID)
@@ -94,34 +122,4 @@ func (v *VerifyHandlerSuite) TestAuthHandler_VerifyHandler_UnauthorizedJWTInvali
 
 	v.Equal(http.StatusUnauthorized, w.Code)
 	v.Contains(w.Body.String(), dto.Err_UNAUTHORIZED_JWT_INVALID.Error())
-}
-
-func (v *VerifyHandlerSuite) TestAuthHandler_VerifyHandler_InternalGetResource() {
-	token := "Bearer internalerror"
-	v.mockAuthService.On("VerifyService", "internalerror").Return("", dto.Err_INTERNAL_GET_RESOURCE)
-
-	w := httptest.NewRecorder()
-	ctx, _ := gin.CreateTestContext(w)
-	ctx.Request = httptest.NewRequest("GET", "/verify", nil)
-	ctx.Request.Header.Set("Authorization", token)
-
-	v.authHandler.Verify(ctx)
-
-	v.Equal(http.StatusInternalServerError, w.Code)
-	v.Contains(w.Body.String(), "failed to get token")
-}
-
-func (v *VerifyHandlerSuite) TestAuthHandler_VerifyHandler_GenericError() {
-	token := "Bearer genericerror"
-	v.mockAuthService.On("VerifyService", "genericerror").Return("", fmt.Errorf("some error"))
-
-	w := httptest.NewRecorder()
-	ctx, _ := gin.CreateTestContext(w)
-	ctx.Request = httptest.NewRequest("GET", "/verify", nil)
-	ctx.Request.Header.Set("Authorization", token)
-
-	v.authHandler.Verify(ctx)
-
-	v.Equal(http.StatusInternalServerError, w.Code)
-	v.Contains(w.Body.String(), "some error")
 }

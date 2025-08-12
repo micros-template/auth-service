@@ -2,6 +2,7 @@ package service_test
 
 import (
 	"testing"
+	"time"
 
 	"10.1.20.130/dropping/auth-service/internal/domain/dto"
 	"10.1.20.130/dropping/auth-service/internal/domain/service"
@@ -15,10 +16,11 @@ import (
 
 type ResetPasswordServiceSuite struct {
 	suite.Suite
-	authService   service.AuthService
-	mockAuthRepo  *mocks.MockAuthRepository
-	mockJetStream *mocks.MockNatsInfra
-	mockGenerator *mocks.MockRandomGenerator
+	authService    service.AuthService
+	mockAuthRepo   *mocks.MockAuthRepository
+	mockJetStream  *mocks.MockNatsInfra
+	mockGenerator  *mocks.MockRandomGenerator
+	mockLogEmitter *mocks.LoggerServiceUtilMock
 }
 
 func (r *ResetPasswordServiceSuite) SetupSuite() {
@@ -28,21 +30,25 @@ func (r *ResetPasswordServiceSuite) SetupSuite() {
 	mockFileClient := new(mocks.MockFileServiceClient)
 	mockJetStream := new(mocks.MockNatsInfra)
 	mockGenerator := new(mocks.MockRandomGenerator)
+	mockLogEmitter := new(mocks.LoggerServiceUtilMock)
 
 	logger := zerolog.Nop()
 	r.mockAuthRepo = mockAuthRepo
 	r.mockJetStream = mockJetStream
 	r.mockGenerator = mockGenerator
-	r.authService = service.New(mockAuthRepo, mockUserClient, mockFileClient, logger, mockJetStream, mockGenerator)
+	r.mockLogEmitter = mockLogEmitter
+	r.authService = service.New(mockAuthRepo, mockUserClient, mockFileClient, logger, mockJetStream, mockGenerator, mockLogEmitter)
 }
 
 func (r *ResetPasswordServiceSuite) SetupTest() {
 	r.mockAuthRepo.ExpectedCalls = nil
 	r.mockJetStream.ExpectedCalls = nil
 	r.mockGenerator.ExpectedCalls = nil
+	r.mockLogEmitter.ExpectedCalls = nil
 	r.mockAuthRepo.Calls = nil
 	r.mockJetStream.Calls = nil
 	r.mockGenerator.Calls = nil
+	r.mockLogEmitter.Calls = nil
 }
 
 func TestResetPasswordServiceSuite(t *testing.T) {
@@ -77,7 +83,7 @@ func (r *ResetPasswordServiceSuite) TestAuthService_ResetPasswordService_Success
 
 }
 
-func (r *ResetPasswordServiceSuite) TestAuthService_ResetPasswordService_UserNotFOund() {
+func (r *ResetPasswordServiceSuite) TestAuthService_ResetPasswordService_UserNotFound() {
 	email := "test@example.com"
 
 	r.mockAuthRepo.On("GetUserByEmail", mock.Anything).Return(nil, dto.Err_NOTFOUND_USER_NOT_FOUND)
@@ -85,5 +91,26 @@ func (r *ResetPasswordServiceSuite) TestAuthService_ResetPasswordService_UserNot
 	err := r.authService.ResetPasswordService(email)
 	r.Error(err)
 	r.mockAuthRepo.AssertExpectations(r.T())
+}
 
+func (r *ResetPasswordServiceSuite) TestAuthService_ResetPasswordService_UserNotVerified() {
+	email := "test@example.com"
+	user := &model.User{
+		ID:               "user-id-123",
+		FullName:         "test_user",
+		Image:            new(string),
+		Email:            email,
+		Password:         "password",
+		Verified:         false,
+		TwoFactorEnabled: false,
+	}
+	r.mockAuthRepo.On("GetUserByEmail", mock.Anything).Return(user, nil)
+	r.mockLogEmitter.On("EmitLog", "ERR", mock.Anything).Return(nil)
+
+	err := r.authService.ResetPasswordService(email)
+	r.Error(err)
+	r.mockAuthRepo.AssertExpectations(r.T())
+
+	time.Sleep(time.Second)
+	r.mockLogEmitter.AssertExpectations(r.T())
 }

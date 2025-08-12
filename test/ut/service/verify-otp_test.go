@@ -3,6 +3,7 @@ package service_test
 import (
 	"errors"
 	"testing"
+	"time"
 
 	"10.1.20.130/dropping/auth-service/internal/domain/dto"
 	"10.1.20.130/dropping/auth-service/internal/domain/service"
@@ -15,8 +16,9 @@ import (
 
 type VerifyOTPServiceSuite struct {
 	suite.Suite
-	authService  service.AuthService
-	mockAuthRepo *mocks.MockAuthRepository
+	authService    service.AuthService
+	mockAuthRepo   *mocks.MockAuthRepository
+	mockLogEmitter *mocks.LoggerServiceUtilMock
 }
 
 func (v *VerifyOTPServiceSuite) SetupSuite() {
@@ -26,16 +28,20 @@ func (v *VerifyOTPServiceSuite) SetupSuite() {
 	mockFileClient := new(mocks.MockFileServiceClient)
 	mockJetStream := new(mocks.MockNatsInfra)
 	mockGenerator := new(mocks.MockRandomGenerator)
+	mockLogEmitter := new(mocks.LoggerServiceUtilMock)
 
 	logger := zerolog.Nop()
 	v.mockAuthRepo = mockAuthRepo
-	v.authService = service.New(mockAuthRepo, mockUserClient, mockFileClient, logger, mockJetStream, mockGenerator)
+	v.mockLogEmitter = mockLogEmitter
+	v.authService = service.New(mockAuthRepo, mockUserClient, mockFileClient, logger, mockJetStream, mockGenerator, mockLogEmitter)
 }
 
 func (v *VerifyOTPServiceSuite) SetupTest() {
 	v.mockAuthRepo.ExpectedCalls = nil
+	v.mockLogEmitter.ExpectedCalls = nil
 
 	v.mockAuthRepo.Calls = nil
+	v.mockLogEmitter.Calls = nil
 }
 
 func TestVerifyOTPServiceSuite(t *testing.T) {
@@ -116,10 +122,14 @@ func (v *VerifyOTPServiceSuite) TestAuthService_VerifyOTPService_InvalidOTP() {
 
 	v.mockAuthRepo.On("GetUserByEmail", mock.Anything).Return(mockUser, nil)
 	v.mockAuthRepo.On("GetResource", mock.Anything, mock.AnythingOfType("string")).Return("654321", nil)
+	v.mockLogEmitter.On("EmitLog", "ERR", mock.Anything).Return(nil)
 
 	token, err := v.authService.VerifyOTPService(otp, email)
 	v.Empty(token)
 	v.Error(err)
 
 	v.mockAuthRepo.AssertExpectations(v.T())
+	time.Sleep(time.Second)
+
+	v.mockLogEmitter.AssertExpectations(v.T())
 }

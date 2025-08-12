@@ -2,6 +2,7 @@ package service_test
 
 import (
 	"testing"
+	"time"
 
 	"10.1.20.130/dropping/auth-service/internal/domain/dto"
 	"10.1.20.130/dropping/auth-service/internal/domain/service"
@@ -20,6 +21,7 @@ type ResendVerificationEmailServiceSuite struct {
 	mockUserClient *mocks.MockUserServiceClient
 	mockJetStream  *mocks.MockNatsInfra
 	mockGenerator  *mocks.MockRandomGenerator
+	mockLogEmitter *mocks.LoggerServiceUtilMock
 }
 
 func (r *ResendVerificationEmailServiceSuite) SetupSuite() {
@@ -29,13 +31,15 @@ func (r *ResendVerificationEmailServiceSuite) SetupSuite() {
 	mockFileClient := new(mocks.MockFileServiceClient)
 	mockJetStream := new(mocks.MockNatsInfra)
 	mockGenerator := new(mocks.MockRandomGenerator)
+	mockLogEmitter := new(mocks.LoggerServiceUtilMock)
 
 	logger := zerolog.Nop()
 	r.mockAuthRepo = mockAuthRepo
 	r.mockUserClient = mockUserClient
 	r.mockJetStream = mockJetStream
 	r.mockGenerator = mockGenerator
-	r.authService = service.New(mockAuthRepo, mockUserClient, mockFileClient, logger, mockJetStream, mockGenerator)
+	r.mockLogEmitter = mockLogEmitter
+	r.authService = service.New(mockAuthRepo, mockUserClient, mockFileClient, logger, mockJetStream, mockGenerator, mockLogEmitter)
 }
 
 func (r *ResendVerificationEmailServiceSuite) SetupTest() {
@@ -43,10 +47,12 @@ func (r *ResendVerificationEmailServiceSuite) SetupTest() {
 	r.mockUserClient.ExpectedCalls = nil
 	r.mockJetStream.ExpectedCalls = nil
 	r.mockGenerator.ExpectedCalls = nil
+	r.mockLogEmitter.ExpectedCalls = nil
 	r.mockAuthRepo.Calls = nil
 	r.mockUserClient.Calls = nil
 	r.mockJetStream.Calls = nil
 	r.mockGenerator.Calls = nil
+	r.mockLogEmitter.Calls = nil
 }
 
 func TestResendVerificationEmailServiceSuite(t *testing.T) {
@@ -103,8 +109,12 @@ func (r *ResendVerificationEmailServiceSuite) TestAuthService_ResendVerification
 		TwoFactorEnabled: false,
 	}
 	r.mockAuthRepo.On("GetUserByEmail", mock.Anything).Return(mockUser, nil)
+	r.mockLogEmitter.On("EmitLog", "ERR", mock.Anything).Return(nil)
 	err := r.authService.ResendVerificationService(email)
 
 	r.Error(err)
 	r.mockAuthRepo.AssertExpectations(r.T())
+
+	time.Sleep(time.Second)
+	r.mockLogEmitter.AssertExpectations(r.T())
 }

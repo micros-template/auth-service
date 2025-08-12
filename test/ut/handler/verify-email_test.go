@@ -4,12 +4,14 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"10.1.20.130/dropping/auth-service/internal/domain/dto"
 	"10.1.20.130/dropping/auth-service/internal/domain/handler"
 	"10.1.20.130/dropping/auth-service/test/mocks"
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -19,18 +21,24 @@ type VerifyEmailHandlerSuite struct {
 	suite.Suite
 	authHandler     handler.AuthHandler
 	mockAuthService *mocks.MockAuthService
+	mockLogEmitter  *mocks.LoggerServiceUtilMock
 }
 
 func (v *VerifyEmailHandlerSuite) SetupSuite() {
 	logger := zerolog.Nop()
 	mockedAuthService := new(mocks.MockAuthService)
+	mockedLogEmitter := new(mocks.LoggerServiceUtilMock)
+
 	v.mockAuthService = mockedAuthService
-	v.authHandler = handler.New(mockedAuthService, logger)
+	v.mockLogEmitter = mockedLogEmitter
+	v.authHandler = handler.New(mockedAuthService, mockedLogEmitter, logger)
 }
 
 func (v *VerifyEmailHandlerSuite) SetupTest() {
 	v.mockAuthService.ExpectedCalls = nil
+	v.mockLogEmitter.ExpectedCalls = nil
 	v.mockAuthService.Calls = nil
+	v.mockLogEmitter.Calls = nil
 	gin.SetMode(gin.TestMode)
 }
 
@@ -59,7 +67,7 @@ func (v *VerifyEmailHandlerSuite) TestAuthHandler_VerifyEmailHandler_Success() {
 	v.mockAuthService.AssertExpectations(v.T())
 }
 
-func (v *VerifyEmailHandlerSuite) TestAuthHandler_VerifyEmailHandler_MissingInput() {
+func (v *VerifyEmailHandlerSuite) TestAuthHandler_VerifyEmailHandler_InvalidInput() {
 	token := "verifytoken"
 
 	w := httptest.NewRecorder()
@@ -67,10 +75,14 @@ func (v *VerifyEmailHandlerSuite) TestAuthHandler_VerifyEmailHandler_MissingInpu
 	req := httptest.NewRequest("GET", "/verify-email?token="+token, nil)
 	ctx.Request = req
 
+	v.mockLogEmitter.On("EmitLog", "ERR", mock.Anything).Return(nil)
 	v.authHandler.VerifyEmail(ctx)
 
 	v.Equal(http.StatusBadRequest, w.Code)
 	v.Contains(w.Body.String(), "invalid input")
+
+	time.Sleep(time.Second)
+	v.mockLogEmitter.AssertExpectations(v.T())
 }
 
 func (v *VerifyEmailHandlerSuite) TestAuthHandler_VerifyEmailHandler_InvalidToken() {
@@ -115,7 +127,7 @@ func (v *VerifyEmailHandlerSuite) TestAuthHandler_VerifyEmailHandler_AlreadyVerf
 	v.mockAuthService.AssertExpectations(v.T())
 }
 
-func (v *VerifyEmailHandlerSuite) TestAuthHandler_VerifyEmailHandler_ExpiredVerfied() {
+func (v *VerifyEmailHandlerSuite) TestAuthHandler_VerifyEmailHandler_ExpiredVerified() {
 	userID := "12345"
 	token := "verifytoken"
 	changeEmailToken := ""

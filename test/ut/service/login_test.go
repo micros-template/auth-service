@@ -23,6 +23,7 @@ type LoginServiceSuite struct {
 	mockFileClient *mocks.MockFileServiceClient
 	mockJetStream  *mocks.MockNatsInfra
 	mockGenerator  *mocks.MockRandomGenerator
+	mockLogEmitter *mocks.LoggerServiceUtilMock
 }
 
 func (l *LoginServiceSuite) SetupSuite() {
@@ -32,22 +33,25 @@ func (l *LoginServiceSuite) SetupSuite() {
 	mockFileClient := new(mocks.MockFileServiceClient)
 	mockJetStream := new(mocks.MockNatsInfra)
 	mockGenerator := new(mocks.MockRandomGenerator)
-
+	mockLogEmitter := new(mocks.LoggerServiceUtilMock)
 	logger := zerolog.Nop()
 	l.mockAuthRepo = mockAuthRepo
 	l.mockFileClient = mockFileClient
 	l.mockJetStream = mockJetStream
 	l.mockGenerator = mockGenerator
-	l.authService = service.New(mockAuthRepo, mockUserClient, mockFileClient, logger, mockJetStream, mockGenerator)
+	l.mockLogEmitter = mockLogEmitter
+	l.authService = service.New(mockAuthRepo, mockUserClient, mockFileClient, logger, mockJetStream, mockGenerator, mockLogEmitter)
 }
 
 func (l *LoginServiceSuite) SetupTest() {
 	l.mockAuthRepo.ExpectedCalls = nil
 	l.mockFileClient.ExpectedCalls = nil
 	l.mockJetStream.ExpectedCalls = nil
+	l.mockLogEmitter.ExpectedCalls = nil
 	l.mockAuthRepo.Calls = nil
 	l.mockFileClient.Calls = nil
 	l.mockJetStream.Calls = nil
+	l.mockLogEmitter.Calls = nil
 }
 
 func TestLoginServiceSuite(t *testing.T) {
@@ -110,12 +114,16 @@ func (l *LoginServiceSuite) TestAuthService_LoginService_NotVerified() {
 	}
 
 	l.mockAuthRepo.On("GetUserByEmail", mock.Anything).Return(mockUser, nil)
+	l.mockLogEmitter.On("EmitLog", "ERR", mock.Anything).Return(nil)
 
 	token, err := l.authService.LoginService(loginReq)
 
 	l.Error(err)
 	l.Empty(token)
 	l.mockAuthRepo.AssertExpectations(l.T())
+
+	time.Sleep(time.Second)
+	l.mockLogEmitter.AssertExpectations(l.T())
 }
 
 func (l *LoginServiceSuite) TestAuthService_LoginService_WrongPassword() {
@@ -133,12 +141,16 @@ func (l *LoginServiceSuite) TestAuthService_LoginService_WrongPassword() {
 	}
 
 	l.mockAuthRepo.On("GetUserByEmail", mock.Anything).Return(mockUser, nil)
+	l.mockLogEmitter.On("EmitLog", "ERR", mock.Anything).Return(nil)
 
 	token, err := l.authService.LoginService(loginReq)
 
 	l.Error(err)
 	l.Empty(token)
 	l.mockAuthRepo.AssertExpectations(l.T())
+
+	time.Sleep(time.Second)
+	l.mockLogEmitter.AssertExpectations(l.T())
 }
 
 func (l *LoginServiceSuite) TestAuthService_LoginService_WithTwoFactor() {

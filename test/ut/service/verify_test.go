@@ -3,6 +3,7 @@ package service_test
 import (
 	"errors"
 	"testing"
+	"time"
 
 	"10.1.20.130/dropping/auth-service/internal/domain/service"
 	"10.1.20.130/dropping/auth-service/test/mocks"
@@ -13,8 +14,9 @@ import (
 
 type VerifyServiceSuite struct {
 	suite.Suite
-	authService  service.AuthService
-	mockAuthRepo *mocks.MockAuthRepository
+	authService    service.AuthService
+	mockAuthRepo   *mocks.MockAuthRepository
+	mockLogEmitter *mocks.LoggerServiceUtilMock
 }
 
 func (v *VerifyServiceSuite) SetupSuite() {
@@ -24,10 +26,12 @@ func (v *VerifyServiceSuite) SetupSuite() {
 	mockFileClient := new(mocks.MockFileServiceClient)
 	mockJetStream := new(mocks.MockNatsInfra)
 	mockGenerator := new(mocks.MockRandomGenerator)
+	mockLogEmitter := new(mocks.LoggerServiceUtilMock)
 
 	logger := zerolog.Nop()
 	v.mockAuthRepo = mockAuthRepo
-	v.authService = service.New(mockAuthRepo, mockUserClient, mockFileClient, logger, mockJetStream, mockGenerator)
+	v.mockLogEmitter = mockLogEmitter
+	v.authService = service.New(mockAuthRepo, mockUserClient, mockFileClient, logger, mockJetStream, mockGenerator, mockLogEmitter)
 }
 
 func (v *VerifyServiceSuite) SetupTest() {
@@ -53,21 +57,29 @@ func (v *VerifyServiceSuite) TestAuthService_VerifyService_Success() {
 
 func (v *VerifyServiceSuite) TestAuthService_VerifyService_NotValidOrExpire() {
 	jwt := "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoidXNlci1pZC0xMjMiLCJleHAiOjE3NTEzNjIwODgsImlhdCI6MTc1MTM2MjA4OH0.quJxCGSx9yQEhdHaZDFEQ7x_shNjb-nuE5FMqtuVKvA"
+	v.mockLogEmitter.On("EmitLog", "ERR", mock.Anything).Return(nil)
 
 	_, err := v.authService.VerifyService(jwt)
 	v.Error(err)
+
+	time.Sleep(time.Second)
+	v.mockLogEmitter.AssertExpectations(v.T())
 }
 
 func (v *VerifyServiceSuite) TestAuthService_VerifyService_DifferentWithState() {
 	jwt := "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoidXNlci1pZC0xMjMiLCJpYXQiOjE3NTEzNjEzOTJ9.CwkzkHgPYAxd6TXG4_ooMFczGvjn3Qr2_7T6W6YCDgI"
 	returnedJwt := "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyX2lkIjoidXNlci1pZC0xMjMiLCJpYXQiOjE3NTEzNjE5OTN9.hutDnLuLsqZSEtOmytC-x25Fria5ycPjd_4XC47C2uM"
+
 	v.mockAuthRepo.On("GetResource", mock.Anything, mock.AnythingOfType("string")).Return(returnedJwt, nil)
+	v.mockLogEmitter.On("EmitLog", "ERR", mock.Anything).Return(nil)
 
 	_, err := v.authService.VerifyService(jwt)
 
 	v.Error(err)
-
 	v.mockAuthRepo.AssertExpectations(v.T())
+
+	time.Sleep(time.Second)
+	v.mockLogEmitter.AssertExpectations(v.T())
 }
 
 func (v *VerifyServiceSuite) TestAuthService_VerifyService_NotFound() {

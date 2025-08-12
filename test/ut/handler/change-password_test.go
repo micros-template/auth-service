@@ -6,12 +6,14 @@ import (
 	"fmt"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"10.1.20.130/dropping/auth-service/internal/domain/dto"
 	"10.1.20.130/dropping/auth-service/internal/domain/handler"
 	"10.1.20.130/dropping/auth-service/test/mocks"
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -21,18 +23,24 @@ type ChangePasswordHandlerSuite struct {
 	suite.Suite
 	authHandler     handler.AuthHandler
 	mockAuthService *mocks.MockAuthService
+	mockLogEmitter  *mocks.LoggerServiceUtilMock
 }
 
 func (c *ChangePasswordHandlerSuite) SetupSuite() {
 	logger := zerolog.Nop()
 	mockedAuthService := new(mocks.MockAuthService)
+	mockedLogEmitter := new(mocks.LoggerServiceUtilMock)
 	c.mockAuthService = mockedAuthService
-	c.authHandler = handler.New(mockedAuthService, logger)
+	c.mockLogEmitter = mockedLogEmitter
+	c.authHandler = handler.New(mockedAuthService, mockedLogEmitter, logger)
 }
 
 func (c *ChangePasswordHandlerSuite) SetupTest() {
 	c.mockAuthService.ExpectedCalls = nil
+	c.mockLogEmitter.ExpectedCalls = nil
+
 	c.mockAuthService.Calls = nil
+	c.mockLogEmitter.Calls = nil
 	gin.SetMode(gin.TestMode)
 }
 
@@ -84,11 +92,15 @@ func (c *ChangePasswordHandlerSuite) TestAuthHandler_ChangePasswordHandler_Missi
 	w := httptest.NewRecorder()
 	ctx, _ := gin.CreateTestContext(w)
 	ctx.Request = request
+	c.mockLogEmitter.On("EmitLog", "ERR", mock.Anything).Return(nil)
 
 	c.authHandler.ChangePassword(ctx)
 
 	c.Equal(400, w.Code)
 	c.Contains(w.Body.String(), "invalid input")
+
+	time.Sleep(time.Second)
+	c.mockLogEmitter.AssertExpectations(c.T())
 }
 
 func (c *ChangePasswordHandlerSuite) TestAuthHandler_ChangePasswordHandler_MissingBody() {
@@ -106,10 +118,14 @@ func (c *ChangePasswordHandlerSuite) TestAuthHandler_ChangePasswordHandler_Missi
 	ctx, _ := gin.CreateTestContext(w)
 	ctx.Request = request
 
+	c.mockLogEmitter.On("EmitLog", "ERR", mock.Anything).Return(nil)
 	c.authHandler.ChangePassword(ctx)
 
 	c.Equal(400, w.Code)
 	c.Contains(w.Body.String(), "invalid input")
+
+	time.Sleep(time.Second)
+	c.mockLogEmitter.AssertExpectations(c.T())
 }
 
 func (c *ChangePasswordHandlerSuite) TestAuthHandler_ChangePasswordHandler_InvalidToken() {

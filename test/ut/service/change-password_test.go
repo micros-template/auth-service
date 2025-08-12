@@ -3,6 +3,7 @@ package service_test
 import (
 	"errors"
 	"testing"
+	"time"
 
 	"10.1.20.130/dropping/auth-service/internal/domain/dto"
 	"10.1.20.130/dropping/auth-service/internal/domain/service"
@@ -24,6 +25,7 @@ type ChangePasswordServiceSuite struct {
 	mockFileClient *mocks.MockFileServiceClient
 	mockJetStream  *mocks.MockNatsInfra
 	mockGenerator  *mocks.MockRandomGenerator
+	mockLogEmitter *mocks.LoggerServiceUtilMock
 }
 
 func (c *ChangePasswordServiceSuite) SetupSuite() {
@@ -33,15 +35,16 @@ func (c *ChangePasswordServiceSuite) SetupSuite() {
 	mockFileClient := new(mocks.MockFileServiceClient)
 	mockJetStream := new(mocks.MockNatsInfra)
 	mockGenerator := new(mocks.MockRandomGenerator)
+	mockLogEmitter := new(mocks.LoggerServiceUtilMock)
 
 	logger := zerolog.Nop()
-	// logger := zerolog.New(zerolog.NewConsoleWriter()).With().Timestamp().Logger()
 	c.mockAuthRepo = mockAuthRepo
 	c.mockUserClient = mockUserClient
 	c.mockFileClient = mockFileClient
 	c.mockJetStream = mockJetStream
 	c.mockGenerator = mockGenerator
-	c.authService = service.New(mockAuthRepo, mockUserClient, mockFileClient, logger, mockJetStream, mockGenerator)
+	c.mockLogEmitter = mockLogEmitter
+	c.authService = service.New(mockAuthRepo, mockUserClient, mockFileClient, logger, mockJetStream, mockGenerator, mockLogEmitter)
 }
 
 func (c *ChangePasswordServiceSuite) SetupTest() {
@@ -50,11 +53,13 @@ func (c *ChangePasswordServiceSuite) SetupTest() {
 	c.mockFileClient.ExpectedCalls = nil
 	c.mockJetStream.ExpectedCalls = nil
 	c.mockGenerator.ExpectedCalls = nil
+	c.mockLogEmitter.ExpectedCalls = nil
 	c.mockAuthRepo.Calls = nil
 	c.mockUserClient.Calls = nil
 	c.mockFileClient.Calls = nil
 	c.mockJetStream.Calls = nil
 	c.mockGenerator.Calls = nil
+	c.mockLogEmitter.Calls = nil
 }
 
 func TestChangePasswordServiceSuite(t *testing.T) {
@@ -126,11 +131,15 @@ func (c *ChangePasswordServiceSuite) TestAuthService_ChangePasswordService_Inval
 	}
 	c.mockAuthRepo.On("GetUserByUserId", mock.Anything).Return(mockUser, nil)
 	c.mockAuthRepo.On("GetResource", mock.Anything, mock.AnythingOfType("string")).Return("valid-reset-password-token", nil)
+	c.mockLogEmitter.On("EmitLog", "ERR", mock.Anything).Return(nil)
 
 	err := c.authService.ChangePasswordService(userid, resetPasswordToken, req)
 
 	c.Error(err)
 	c.mockAuthRepo.AssertExpectations(c.T())
+
+	time.Sleep(time.Second)
+	c.mockLogEmitter.AssertExpectations(c.T())
 }
 
 func (c *ChangePasswordServiceSuite) TestAuthService_ChangePasswordService_PasswordAndConfirmPasswordNotMatch() {
@@ -140,9 +149,12 @@ func (c *ChangePasswordServiceSuite) TestAuthService_ChangePasswordService_Passw
 		Password:        "new-password",
 		ConfirmPassword: "different-new-password",
 	}
-
+	c.mockLogEmitter.On("EmitLog", "ERR", mock.Anything).Return(nil)
 	err := c.authService.ChangePasswordService(userid, resetPasswordToken, req)
 	c.Error(err)
+
+	time.Sleep(time.Second)
+	c.mockLogEmitter.AssertExpectations(c.T())
 }
 
 func (c *ChangePasswordServiceSuite) TestAuthService_ChangePasswordService_UserNotFound() {
@@ -178,9 +190,14 @@ func (c *ChangePasswordServiceSuite) TestAuthService_ChangePasswordService_UserN
 	c.mockAuthRepo.On("GetResource", mock.Anything, mock.AnythingOfType("string")).Return(resetPasswordToken, nil)
 	c.mockAuthRepo.On("GetUserByUserId", mock.Anything).Return(mockUser, nil)
 	c.mockUserClient.On("UpdateUser", mock.Anything, mock.Anything, mock.Anything).Return(nil, status.Error(codes.NotFound, "user not found"))
+	c.mockLogEmitter.On("EmitLog", "ERR", mock.Anything).Return(nil)
 
 	err := c.authService.ChangePasswordService(userid, resetPasswordToken, req)
+
 	c.Error(err)
 	c.mockAuthRepo.AssertExpectations(c.T())
 	c.mockUserClient.AssertExpectations(c.T())
+
+	time.Sleep(time.Second)
+	c.mockLogEmitter.AssertExpectations(c.T())
 }

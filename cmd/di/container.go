@@ -15,6 +15,7 @@ import (
 	"10.1.20.130/dropping/auth-service/internal/infrastructure/grpc"
 	_mq "10.1.20.130/dropping/auth-service/internal/infrastructure/message-queue"
 	"10.1.20.130/dropping/auth-service/pkg/generators"
+	"10.1.20.130/dropping/auth-service/pkg/utils"
 	"go.uber.org/dig"
 )
 
@@ -50,6 +51,10 @@ func BuildContainer() *dig.Container {
 	// log emitter
 	if err := container.Provide(logemitter.NewInfraLogEmitter); err != nil {
 		panic("Failed to provide log emitter: " + err.Error())
+	}
+	// log emitter infra
+	if err := container.Provide(utils.NewLoggerServiceUtil); err != nil {
+		panic("Failed to provide log emitter infra: " + err.Error())
 	}
 	// user event consumer
 	if err := container.Provide(_mq.NewUserEventConsumerInfra); err != nil {

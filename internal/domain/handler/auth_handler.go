@@ -6,6 +6,7 @@ import (
 
 	"10.1.20.130/dropping/auth-service/internal/domain/dto"
 	"10.1.20.130/dropping/auth-service/internal/domain/service"
+	u "10.1.20.130/dropping/auth-service/pkg/utils"
 	"github.com/dropboks/sharedlib/utils"
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog"
@@ -21,7 +22,7 @@ type (
 		Verify(ctx *gin.Context)
 		VerifyEmail(ctx *gin.Context)
 		ResendVerficationEmail(ctx *gin.Context)
-		VerifyOTP(ctx *gin.Context)
+		VerifyOTP(ctx *gin.Context) //log success
 		ResendVerificationOTP(ctx *gin.Context)
 		ResetPassword(ctx *gin.Context)
 		ChangePassword(ctx *gin.Context)
@@ -29,13 +30,15 @@ type (
 	authHandler struct {
 		authService service.AuthService
 		logger      zerolog.Logger
+		logEmitter  u.LoggerServiceUtil
 	}
 )
 
-func New(authService service.AuthService, logger zerolog.Logger) AuthHandler {
+func New(authService service.AuthService, logEmitter u.LoggerServiceUtil, logger zerolog.Logger) AuthHandler {
 	return &authHandler{
 		authService: authService,
 		logger:      logger,
+		logEmitter:  logEmitter,
 	}
 }
 
@@ -56,14 +59,22 @@ func (a *authHandler) ChangePassword(ctx *gin.Context) {
 	userId := ctx.Query("userid")
 	resetPasswordtoken := ctx.Query("resetPasswordToken")
 	if userId == "" || resetPasswordtoken == "" {
-		a.logger.Error().Msg("missing userId or token")
+		go func() {
+			if err := a.logEmitter.EmitLog("ERR", "missing userId or token"); err != nil {
+				a.logger.Error().Err(err).Msg("failed to emit log")
+			}
+		}()
 		res := utils.ReturnResponseError(http.StatusBadRequest, "invalid input")
 		ctx.AbortWithStatusJSON(http.StatusBadRequest, res)
 		return
 	}
 	var req dto.ChangePasswordRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
-		a.logger.Error().Err(err).Msg("missing body request")
+		go func() {
+			if err := a.logEmitter.EmitLog("ERR", fmt.Sprintf("missing body request. Err: %v", err.Error())); err != nil {
+				a.logger.Error().Err(err).Msg("failed to emit log")
+			}
+		}()
 		res := utils.ReturnResponseError(400, "invalid input")
 		ctx.AbortWithStatusJSON(http.StatusBadRequest, res)
 		return
@@ -90,7 +101,7 @@ func (a *authHandler) ChangePassword(ctx *gin.Context) {
 			ctx.AbortWithStatusJSON(http.StatusNotFound, res)
 			return
 		}
-		res := utils.ReturnResponseError(500, err.Error())
+		res := utils.ReturnResponseError(500, "internal server error")
 		ctx.AbortWithStatusJSON(http.StatusInternalServerError, res)
 		return
 	}
@@ -113,7 +124,11 @@ func (a *authHandler) ChangePassword(ctx *gin.Context) {
 func (a *authHandler) ResetPassword(ctx *gin.Context) {
 	var req dto.ResetPasswordRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
-		a.logger.Error().Err(err).Msg("bad request")
+		go func() {
+			if err := a.logEmitter.EmitLog("ERR", fmt.Sprintf("bad request. Err: %v", err.Error())); err != nil {
+				a.logger.Error().Err(err).Msg("failed to emit log")
+			}
+		}()
 		res := utils.ReturnResponseError(http.StatusBadRequest, "missing email")
 		ctx.AbortWithStatusJSON(http.StatusBadRequest, res)
 		return
@@ -131,14 +146,13 @@ func (a *authHandler) ResetPassword(ctx *gin.Context) {
 			return
 		}
 		code := status.Code(err)
-		message := status.Convert(err).Message()
 		switch code {
 		case codes.Internal:
-			res := utils.ReturnResponseError(500, message)
+			res := utils.ReturnResponseError(500, "internal server error")
 			ctx.AbortWithStatusJSON(http.StatusInternalServerError, res)
 			return
 		}
-		res := utils.ReturnResponseError(500, err.Error())
+		res := utils.ReturnResponseError(500, "internal server error")
 		ctx.AbortWithStatusJSON(http.StatusInternalServerError, res)
 		return
 	}
@@ -161,6 +175,11 @@ func (a *authHandler) ResetPassword(ctx *gin.Context) {
 func (a *authHandler) ResendVerificationOTP(ctx *gin.Context) {
 	var req dto.ResendVerificationRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
+		go func() {
+			if err := a.logEmitter.EmitLog("ERR", fmt.Sprintf("bad request. Err: %v", err.Error())); err != nil {
+				a.logger.Error().Err(err).Msg("failed to emit log")
+			}
+		}()
 		res := utils.ReturnResponseError(http.StatusBadRequest, "missing email")
 		ctx.AbortWithStatusJSON(http.StatusBadRequest, res)
 		return
@@ -181,14 +200,13 @@ func (a *authHandler) ResendVerificationOTP(ctx *gin.Context) {
 			return
 		}
 		code := status.Code(err)
-		message := status.Convert(err).Message()
 		switch code {
 		case codes.Internal:
-			res := utils.ReturnResponseError(500, message)
+			res := utils.ReturnResponseError(500, "internal server error")
 			ctx.AbortWithStatusJSON(http.StatusInternalServerError, res)
 			return
 		}
-		res := utils.ReturnResponseError(500, err.Error())
+		res := utils.ReturnResponseError(500, "internal server error")
 		ctx.AbortWithStatusJSON(http.StatusInternalServerError, res)
 		return
 	}
@@ -211,6 +229,11 @@ func (a *authHandler) ResendVerificationOTP(ctx *gin.Context) {
 func (a *authHandler) VerifyOTP(ctx *gin.Context) {
 	var req dto.VerifyOTPRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
+		go func() {
+			if err := a.logEmitter.EmitLog("ERR", fmt.Sprintf("bad request. Err: %v", err.Error())); err != nil {
+				a.logger.Error().Err(err).Msg("failed to emit log")
+			}
+		}()
 		res := utils.ReturnResponseError(http.StatusBadRequest, "invalid input")
 		ctx.AbortWithStatusJSON(http.StatusBadRequest, res)
 		return
@@ -232,17 +255,21 @@ func (a *authHandler) VerifyOTP(ctx *gin.Context) {
 			return
 		}
 		code := status.Code(err)
-		message := status.Convert(err).Message()
 		switch code {
 		case codes.Internal:
-			res := utils.ReturnResponseError(500, message)
+			res := utils.ReturnResponseError(500, "internal server error")
 			ctx.AbortWithStatusJSON(http.StatusInternalServerError, res)
 			return
 		}
-		res := utils.ReturnResponseError(500, err.Error())
+		res := utils.ReturnResponseError(500, "internal server error")
 		ctx.AbortWithStatusJSON(http.StatusInternalServerError, res)
 		return
 	}
+	go func() {
+		if err := a.logEmitter.EmitLog("INFO", fmt.Sprintf("Login to the system, email: %s", req.Email)); err != nil {
+			a.logger.Error().Err(err).Msg("failed to emit log")
+		}
+	}()
 	res := utils.ReturnResponseSuccess(200, dto.OTP_VERIFICATION_SUCCESS, token)
 	ctx.JSON(http.StatusOK, res)
 }
@@ -262,6 +289,11 @@ func (a *authHandler) VerifyOTP(ctx *gin.Context) {
 func (a *authHandler) ResendVerficationEmail(ctx *gin.Context) {
 	var req dto.ResendVerificationRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
+		go func() {
+			if err := a.logEmitter.EmitLog("ERR", fmt.Sprintf("bad request. Err: %v", err.Error())); err != nil {
+				a.logger.Error().Err(err).Msg("failed to emit log")
+			}
+		}()
 		res := utils.ReturnResponseError(http.StatusBadRequest, "missing email")
 		ctx.AbortWithStatusJSON(http.StatusBadRequest, res)
 		return
@@ -276,21 +308,16 @@ func (a *authHandler) ResendVerficationEmail(ctx *gin.Context) {
 			res := utils.ReturnResponseError(404, err.Error())
 			ctx.AbortWithStatusJSON(http.StatusNotFound, res)
 			return
-		case dto.Err_INTERNAL_GENERATE_TOKEN, dto.Err_INTERNAL_PUBLISH_MESSAGE:
-			res := utils.ReturnResponseError(500, err.Error())
-			ctx.AbortWithStatusJSON(http.StatusInternalServerError, res)
-			return
 		}
 
 		code := status.Code(err)
-		message := status.Convert(err).Message()
 		switch code {
 		case codes.Internal:
-			res := utils.ReturnResponseError(500, message)
+			res := utils.ReturnResponseError(500, "internal server error")
 			ctx.AbortWithStatusJSON(http.StatusInternalServerError, res)
 			return
 		}
-		res := utils.ReturnResponseError(500, err.Error())
+		res := utils.ReturnResponseError(500, "internal server error")
 		ctx.AbortWithStatusJSON(http.StatusInternalServerError, res)
 		return
 	}
@@ -318,6 +345,11 @@ func (a *authHandler) VerifyEmail(ctx *gin.Context) {
 	token := ctx.Query("token")
 	changeEmailToken := ctx.Query("changeEmailToken")
 	if userId == "" || (token == "" && changeEmailToken == "") {
+		go func() {
+			if err := a.logEmitter.EmitLog("ERR", "bad request, missing userId, token, or ChangeEmailToken"); err != nil {
+				a.logger.Error().Err(err).Msg("failed to emit log")
+			}
+		}()
 		res := utils.ReturnResponseError(http.StatusBadRequest, "invalid input")
 		ctx.AbortWithStatusJSON(http.StatusBadRequest, res)
 		return
@@ -340,10 +372,6 @@ func (a *authHandler) VerifyEmail(ctx *gin.Context) {
 			res := utils.ReturnResponseError(404, "verification token is not found")
 			ctx.AbortWithStatusJSON(http.StatusNotFound, res)
 			return
-		case dto.Err_INTERNAL_DELETE_RESOURCE:
-			res := utils.ReturnResponseError(500, err.Error())
-			ctx.AbortWithStatusJSON(http.StatusInternalServerError, res)
-			return
 		}
 		code := status.Code(err)
 		message := status.Convert(err).Message()
@@ -353,11 +381,11 @@ func (a *authHandler) VerifyEmail(ctx *gin.Context) {
 			ctx.AbortWithStatusJSON(http.StatusNotFound, res)
 			return
 		case codes.Internal:
-			res := utils.ReturnResponseError(500, message)
+			res := utils.ReturnResponseError(500, "internal server error")
 			ctx.AbortWithStatusJSON(http.StatusInternalServerError, res)
 			return
 		}
-		res := utils.ReturnResponseError(500, err.Error())
+		res := utils.ReturnResponseError(500, "internal server error")
 		ctx.AbortWithStatusJSON(http.StatusInternalServerError, res)
 		return
 	}
@@ -378,10 +406,20 @@ func (a *authHandler) VerifyEmail(ctx *gin.Context) {
 func (a *authHandler) Verify(ctx *gin.Context) {
 	token := ctx.GetHeader("Authorization")
 	if token == "" {
+		go func() {
+			if err := a.logEmitter.EmitLog("ERR", "Token is Missing"); err != nil {
+				a.logger.Error().Err(err).Msg("failed to emit log")
+			}
+		}()
 		ctx.AbortWithStatusJSON(http.StatusUnauthorized, "Token is missing")
 		return
 	}
 	if len(token) < 7 {
+		go func() {
+			if err := a.logEmitter.EmitLog("ERR", "Invalid token format"); err != nil {
+				a.logger.Error().Err(err).Msg("failed to emit log")
+			}
+		}()
 		ctx.AbortWithStatusJSON(http.StatusUnauthorized, "Invalid token format")
 		return
 	}
@@ -397,12 +435,8 @@ func (a *authHandler) Verify(ctx *gin.Context) {
 			res := utils.ReturnResponseError(401, err.Error())
 			ctx.AbortWithStatusJSON(http.StatusUnauthorized, res)
 			return
-		case dto.Err_INTERNAL_GET_RESOURCE:
-			res := utils.ReturnResponseError(500, "failed to get token")
-			ctx.AbortWithStatusJSON(http.StatusInternalServerError, res)
-			return
 		}
-		res := utils.ReturnResponseError(500, err.Error())
+		res := utils.ReturnResponseError(500, "internal server error")
 		ctx.AbortWithStatusJSON(http.StatusInternalServerError, res)
 		return
 	}
@@ -423,10 +457,20 @@ func (a *authHandler) Verify(ctx *gin.Context) {
 func (a *authHandler) Logout(ctx *gin.Context) {
 	token := ctx.GetHeader("Authorization")
 	if token == "" {
+		go func() {
+			if err := a.logEmitter.EmitLog("ERR", "Token is Missing"); err != nil {
+				a.logger.Error().Err(err).Msg("failed to emit log")
+			}
+		}()
 		ctx.AbortWithStatusJSON(http.StatusUnauthorized, "Token is missing")
 		return
 	}
 	if len(token) < 7 {
+		go func() {
+			if err := a.logEmitter.EmitLog("ERR", "Invalid token format"); err != nil {
+				a.logger.Error().Err(err).Msg("failed to emit log")
+			}
+		}()
 		ctx.AbortWithStatusJSON(http.StatusUnauthorized, "Invalid token format")
 		return
 	}
@@ -438,13 +482,8 @@ func (a *authHandler) Logout(ctx *gin.Context) {
 			res := utils.ReturnResponseError(401, err.Error())
 			ctx.AbortWithStatusJSON(http.StatusUnauthorized, res)
 			return
-		case dto.Err_INTERNAL_DELETE_RESOURCE:
-			res := utils.ReturnResponseError(500, "failed to delete token")
-			ctx.AbortWithStatusJSON(http.StatusInternalServerError, res)
-			return
 		}
-
-		res := utils.ReturnResponseError(500, err.Error())
+		res := utils.ReturnResponseError(500, "internal server error")
 		ctx.AbortWithStatusJSON(http.StatusInternalServerError, res)
 		return
 	}
@@ -466,7 +505,11 @@ func (a *authHandler) Logout(ctx *gin.Context) {
 func (a *authHandler) Register(ctx *gin.Context) {
 	var req dto.RegisterRequest
 	if err := ctx.ShouldBind(&req); err != nil {
-		a.logger.Error().Err(err).Msg("Bad Request")
+		go func() {
+			if err := a.logEmitter.EmitLog("ERR", fmt.Sprintf("bad request. Err: %v", err.Error())); err != nil {
+				a.logger.Error().Err(err).Msg("failed to emit log")
+			}
+		}()
 		res := utils.ReturnResponseError(400, dto.Err_BAD_REQUEST.Error())
 		ctx.AbortWithStatusJSON(http.StatusBadRequest, res)
 		return
@@ -477,10 +520,6 @@ func (a *authHandler) Register(ctx *gin.Context) {
 		case dto.Err_CONFLICT_EMAIL_EXIST:
 			res := utils.ReturnResponseError(409, err.Error())
 			ctx.AbortWithStatusJSON(http.StatusConflict, res)
-			return
-		case dto.Err_INTERNAL_CONVERT_IMAGE:
-			res := utils.ReturnResponseError(500, err.Error())
-			ctx.AbortWithStatusJSON(http.StatusInternalServerError, res)
 			return
 		case dto.Err_BAD_REQUEST_WRONG_EXTENSION:
 			res := utils.ReturnResponseError(400, err.Error())
@@ -494,27 +533,14 @@ func (a *authHandler) Register(ctx *gin.Context) {
 			res := utils.ReturnResponseError(400, err.Error())
 			ctx.AbortWithStatusJSON(http.StatusBadRequest, res)
 			return
-		case dto.Err_INTENAL_JWT_SIGNING:
-			res := utils.ReturnResponseError(500, err.Error())
-			ctx.AbortWithStatusJSON(http.StatusInternalServerError, res)
-			return
-		case dto.Err_INTERNAL_SET_RESOURCE:
-			res := utils.ReturnResponseError(500, "failed to set verification token")
-			ctx.AbortWithStatusJSON(http.StatusInternalServerError, res)
-			return
-		case dto.Err_INTERNAL_GENERATE_TOKEN:
-			res := utils.ReturnResponseError(500, "failed to set verification token")
-			ctx.AbortWithStatusJSON(http.StatusInternalServerError, res)
-			return
 		}
 		code := status.Code(err)
-		message := status.Convert(err).Message()
 		if code == codes.Internal {
-			res := utils.ReturnResponseError(500, message)
+			res := utils.ReturnResponseError(500, "internal server error")
 			ctx.AbortWithStatusJSON(http.StatusInternalServerError, res)
 			return
 		}
-		res := utils.ReturnResponseError(500, err.Error())
+		res := utils.ReturnResponseError(500, "internal server error")
 		ctx.AbortWithStatusJSON(http.StatusInternalServerError, res)
 		return
 	}
@@ -537,7 +563,11 @@ func (a *authHandler) Register(ctx *gin.Context) {
 func (a *authHandler) Login(ctx *gin.Context) {
 	var req dto.LoginRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
-		a.logger.Error().Err(err).Msg("Bad Request")
+		go func() {
+			if err := a.logEmitter.EmitLog("ERR", fmt.Sprintf("bad request. Err: %v", err.Error())); err != nil {
+				a.logger.Error().Err(err).Msg("failed to emit log")
+			}
+		}()
 		res := utils.ReturnResponseError(400, dto.Err_BAD_REQUEST.Error())
 		ctx.AbortWithStatusJSON(http.StatusBadRequest, res)
 		return
@@ -559,14 +589,13 @@ func (a *authHandler) Login(ctx *gin.Context) {
 			return
 		}
 		code := status.Code(err)
-		message := status.Convert(err).Message()
 		switch code {
 		case codes.Internal:
-			res := utils.ReturnResponseError(500, message)
+			res := utils.ReturnResponseError(500, "internal server error")
 			ctx.AbortWithStatusJSON(http.StatusInternalServerError, res)
 			return
 		}
-		res := utils.ReturnResponseError(500, err.Error())
+		res := utils.ReturnResponseError(500, "internal server error")
 		ctx.AbortWithStatusJSON(http.StatusInternalServerError, res)
 		return
 	}
@@ -575,6 +604,11 @@ func (a *authHandler) Login(ctx *gin.Context) {
 		ctx.JSON(http.StatusOK, res)
 		return
 	}
+	go func() {
+		if err := a.logEmitter.EmitLog("INFO", fmt.Sprintf("Login to the system, email: %s", req.Email)); err != nil {
+			a.logger.Error().Err(err).Msg("failed to emit log")
+		}
+	}()
 	res := utils.ReturnResponseSuccess(200, dto.LOGIN_SUCCESS, token)
 	ctx.JSON(http.StatusOK, res)
 }

@@ -3,6 +3,7 @@ package repository_test
 import (
 	"context"
 	"testing"
+	"time"
 
 	"10.1.20.130/dropping/auth-service/internal/domain/repository"
 	"10.1.20.130/dropping/auth-service/test/mocks"
@@ -17,21 +18,27 @@ type GetResourceRepositorySuite struct {
 	suite.Suite
 	authRepository  repository.AuthRepository
 	mockRedisClient *mocks.MockRedisCache
+	mockLogEmitter  *mocks.LoggerServiceUtilMock
 }
 
 func (s *GetResourceRepositorySuite) SetupSuite() {
 
 	logger := zerolog.Nop()
 	redisClient := new(mocks.MockRedisCache)
+	mockLogEmitter := new(mocks.LoggerServiceUtilMock)
 	pgxMock, err := pgxmock.NewPool()
 	s.NoError(err)
 	s.mockRedisClient = redisClient
-	s.authRepository = repository.New(redisClient, pgxMock, logger)
+	s.mockLogEmitter = mockLogEmitter
+	s.authRepository = repository.New(redisClient, pgxMock, mockLogEmitter, logger)
 }
 
 func (s *GetResourceRepositorySuite) SetupTest() {
 	s.mockRedisClient.ExpectedCalls = nil
+	s.mockLogEmitter.ExpectedCalls = nil
+
 	s.mockRedisClient.Calls = nil
+	s.mockLogEmitter.Calls = nil
 }
 
 func TestGetResourceRepositorySuite(t *testing.T) {
@@ -57,10 +64,14 @@ func (s *GetResourceRepositorySuite) TestAuthRepository_GetResource_NotFound() {
 	ctx := context.Background()
 
 	s.mockRedisClient.On("Get", mock.Anything, key).Return("", redis.Nil)
+	s.mockLogEmitter.On("EmitLog", "ERR", mock.Anything).Return(nil)
 
 	val, err := s.authRepository.GetResource(ctx, key)
 
 	s.Error(err)
 	s.Empty(val)
 	s.mockRedisClient.AssertExpectations(s.T())
+
+	time.Sleep(time.Second)
+	s.mockLogEmitter.AssertExpectations(s.T())
 }

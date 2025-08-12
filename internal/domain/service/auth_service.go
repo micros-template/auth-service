@@ -13,6 +13,7 @@ import (
 	"10.1.20.130/dropping/auth-service/pkg/constant"
 	"10.1.20.130/dropping/auth-service/pkg/generators"
 	"10.1.20.130/dropping/auth-service/pkg/jwt"
+	"10.1.20.130/dropping/auth-service/pkg/utils"
 	fpb "github.com/dropboks/proto-file/pkg/fpb"
 	upb "github.com/dropboks/proto-user/pkg/upb"
 	_dto "github.com/dropboks/sharedlib/dto"
@@ -41,10 +42,11 @@ type (
 		logger            zerolog.Logger
 		js                _mq.Nats
 		g                 generators.RandomGenerator
+		logEmitter        utils.LoggerServiceUtil
 	}
 )
 
-func New(authRepository repository.AuthRepository, userServiceClient upb.UserServiceClient, fileServiceClient fpb.FileServiceClient, logger zerolog.Logger, js _mq.Nats, g generators.RandomGenerator) AuthService {
+func New(authRepository repository.AuthRepository, userServiceClient upb.UserServiceClient, fileServiceClient fpb.FileServiceClient, logger zerolog.Logger, js _mq.Nats, g generators.RandomGenerator, logEmitter utils.LoggerServiceUtil) AuthService {
 	return &authService{
 		authRepository:    authRepository,
 		userServiceClient: userServiceClient,
@@ -52,12 +54,17 @@ func New(authRepository repository.AuthRepository, userServiceClient upb.UserSer
 		logger:            logger,
 		js:                js,
 		g:                 g,
+		logEmitter:        logEmitter,
 	}
 }
 
 func (a *authService) ChangePasswordService(userId string, resetPasswordToken string, req *dto.ChangePasswordRequest) error {
 	if req.Password != req.ConfirmPassword {
-		a.logger.Error().Msg("password and confirm password doesn't match")
+		go func() {
+			if err := a.logEmitter.EmitLog("ERR", "password and confirm password doesn't match"); err != nil {
+				a.logger.Error().Err(err).Msg("failed to emit log")
+			}
+		}()
 		return dto.Err_BAD_REQUEST_PASSWORD_DOESNT_MATCH
 	}
 
@@ -70,11 +77,14 @@ func (a *authService) ChangePasswordService(userId string, resetPasswordToken st
 
 	rToken, err := a.authRepository.GetResource(ctx, key)
 	if err != nil {
-		a.logger.Error().Err(err).Msg("get token error")
 		return err
 	}
 	if rToken != resetPasswordToken {
-		a.logger.Error().Msg("token is not match")
+		go func() {
+			if err := a.logEmitter.EmitLog("ERR", "resePasswordToken is not valid"); err != nil {
+				a.logger.Error().Err(err).Msg("failed to emit log")
+			}
+		}()
 		return dto.Err_UNAUTHORIZED_TOKEN_INVALID
 	}
 	hashedPassword, err := _utils.HashPassword(req.Password)
@@ -93,6 +103,11 @@ func (a *authService) ChangePasswordService(userId string, resetPasswordToken st
 	}
 	_, err = a.userServiceClient.UpdateUser(ctx, us)
 	if err != nil {
+		go func() {
+			if err := a.logEmitter.EmitLog("ERR", fmt.Sprintf("Update user failed. Err:%v", err.Error())); err != nil {
+				a.logger.Error().Err(err).Msg("failed to emit log")
+			}
+		}()
 		return err
 	}
 	if err := a.authRepository.RemoveResource(ctx, key); err != nil {
@@ -108,19 +123,26 @@ func (a *authService) ResetPasswordService(email string) error {
 		return err
 	}
 	if !user.Verified {
-		a.logger.Error().Msg("user is not verified")
+		go func() {
+			if err := a.logEmitter.EmitLog("ERR", "User is not verified"); err != nil {
+				a.logger.Error().Err(err).Msg("failed to emit log")
+			}
+		}()
 		return dto.Err_UNAUTHORIZED_USER_NOT_VERIFIED
 	}
 
 	resetPasswordToken, err := a.g.GenerateToken()
 	if err != nil {
-		a.logger.Error().Err(err).Msg("error generate verification token")
+		go func() {
+			if err := a.logEmitter.EmitLog("ERR", fmt.Sprintf("error generate verification token. Err:%v", err.Error())); err != nil {
+				a.logger.Error().Err(err).Msg("failed to emit log")
+			}
+		}()
 		return dto.Err_INTERNAL_GENERATE_TOKEN
 	}
 
 	key := fmt.Sprintf("resetPasswordToken:%s", user.ID)
 	if err := a.authRepository.SetResource(ctx, key, resetPasswordToken, 1*time.Hour); err != nil {
-		a.logger.Error().Err(err).Msg("failed to set reset password token")
 		return err
 	}
 
@@ -133,12 +155,28 @@ func (a *authService) ResetPasswordService(email string) error {
 	}
 	marshalledMsg, err := json.Marshal(msg)
 	if err != nil {
-		a.logger.Error().Err(err).Msg("marshal data error")
+		go func() {
+			if err := a.logEmitter.EmitLog("ERR", fmt.Sprintf("marshal data error. Err:%v", err.Error())); err != nil {
+				a.logger.Error().Err(err).Msg("failed to emit log")
+			}
+		}()
 		return err
 	}
 	_, err = a.js.Publish(ctx, subject, []byte(marshalledMsg))
 	if err != nil {
-		a.logger.Error().Err(err).Msg("publish notification error")
+		go func() {
+			if err := a.logEmitter.EmitLog("ERR", fmt.Sprintf("publish notification error. Err:%v", err.Error())); err != nil {
+				a.logger.Error().Err(err).Msg("failed to emit log")
+			}
+		}()
+		if err := a.authRepository.RemoveResource(ctx, key); err != nil {
+			go func() {
+				if err := a.logEmitter.EmitLog("ERR", fmt.Sprintf("failed to remove reset password token. Err:%v", err.Error())); err != nil {
+					a.logger.Error().Err(err).Msg("failed to emit log")
+				}
+			}()
+		}
+		return err
 	}
 	return nil
 }
@@ -147,25 +185,35 @@ func (a *authService) ResendVerificationOTPService(email string) error {
 	ctx := context.Background()
 	user, err := a.authRepository.GetUserByEmail(email)
 	if err != nil {
-		a.logger.Error().Err(err).Msg("error from user_service")
 		return err
 	}
 	if !user.Verified {
-		a.logger.Error().Err(err).Msg("user is not verified")
+		go func() {
+			if err := a.logEmitter.EmitLog("ERR", "User is not verified"); err != nil {
+				a.logger.Error().Err(err).Msg("failed to emit log")
+			}
+		}()
 		return dto.Err_UNAUTHORIZED_USER_NOT_VERIFIED
 	}
 	if !user.TwoFactorEnabled {
-		a.logger.Error().Err(err).Msg("user is not activate 2FA")
+		go func() {
+			if err := a.logEmitter.EmitLog("ERR", "user is not activate 2FA"); err != nil {
+				a.logger.Error().Err(err).Msg("failed to emit log")
+			}
+		}()
 		return dto.Err_UNAUTHORIZED_2FA_DISABLED
 	}
 	otp, err := a.g.GenerateOTP()
 	if err != nil {
-		a.logger.Error().Err(err).Msg("generate OTP error")
+		go func() {
+			if err := a.logEmitter.EmitLog("ERR", fmt.Sprintf("generate OTP error. Err:%v", err.Error())); err != nil {
+				a.logger.Error().Err(err).Msg("failed to emit log")
+			}
+		}()
 		return dto.Err_INTERNAL_GENERATE_OTP
 	}
 	key := fmt.Sprintf("OTP:%s", user.ID)
 	if err := a.authRepository.SetResource(ctx, key, otp, 2*time.Minute); err != nil {
-		a.logger.Error().Err(err).Msg("failed to set OTP")
 		return err
 	}
 
@@ -177,12 +225,27 @@ func (a *authService) ResendVerificationOTPService(email string) error {
 	}
 	marshalledMsg, err := json.Marshal(msg)
 	if err != nil {
-		a.logger.Error().Err(err).Msg("marshal data error")
+		go func() {
+			if err := a.logEmitter.EmitLog("ERR", fmt.Sprintf("marshal data error. Err:%v", err.Error())); err != nil {
+				a.logger.Error().Err(err).Msg("failed to emit log")
+			}
+		}()
 		return err
 	}
 	_, err = a.js.Publish(ctx, subject, []byte(marshalledMsg))
 	if err != nil {
-		a.logger.Error().Err(err).Msg("publish notification error")
+		go func() {
+			if err := a.logEmitter.EmitLog("ERR", fmt.Sprintf("publish notification error. Err:%v", err.Error())); err != nil {
+				a.logger.Error().Err(err).Msg("failed to emit log")
+			}
+		}()
+		if err := a.authRepository.RemoveResource(ctx, key); err != nil {
+			go func() {
+				if err := a.logEmitter.EmitLog("ERR", fmt.Sprintf("failed to remove reset password token. Err:%v", err.Error())); err != nil {
+					a.logger.Error().Err(err).Msg("failed to emit log")
+				}
+			}()
+		}
 		return err
 	}
 	return nil
@@ -192,33 +255,37 @@ func (a *authService) VerifyOTPService(otp, email string) (string, error) {
 	ctx := context.Background()
 	user, err := a.authRepository.GetUserByEmail(email)
 	if err != nil {
-		a.logger.Error().Err(err).Msg("error from user_service")
 		return "", err
 	}
 	key := fmt.Sprintf("OTP:%s", user.ID)
 	rOTP, err := a.authRepository.GetResource(ctx, key)
 	if err != nil {
-		a.logger.Error().Err(err).Msg("error get otp from Redis")
 		return "", err
 	}
 	if rOTP != otp {
-		a.logger.Error().Err(dto.Err_UNAUTHORIZED_OTP_INVALID).Msg("OTP is not valid")
+		go func() {
+			if err := a.logEmitter.EmitLog("ERR", fmt.Sprintf("OTP is not valid. Err:%v", dto.Err_UNAUTHORIZED_OTP_INVALID.Error())); err != nil {
+				a.logger.Error().Err(err).Msg("failed to emit log")
+			}
+		}()
 		return "", dto.Err_UNAUTHORIZED_OTP_INVALID
 	}
 	err = a.authRepository.RemoveResource(ctx, key)
 	if err != nil {
-		a.logger.Error().Err(err).Msg("error remove otp from Redis")
 		return "", err
 	}
 
 	token, claims, err := jwt.GenerateToken(user.ID, 1*time.Hour)
 	if err != nil {
-		a.logger.Error().Err(err).Msg("error JWT Signing")
+		go func() {
+			if err := a.logEmitter.EmitLog("ERR", fmt.Sprintf("error JWT Signing. Err:%v", err.Error())); err != nil {
+				a.logger.Error().Err(err).Msg("failed to emit log")
+			}
+		}()
 		return "", dto.Err_INTENAL_JWT_SIGNING
 	}
 	sessionKey := "session:" + claims.ID
 	if err := a.authRepository.SetResource(ctx, sessionKey, token, 1*time.Hour); err != nil {
-		a.logger.Error().Err(err).Msg("error saving token to Redis")
 		return "", err
 	}
 	return token, nil
@@ -231,17 +298,24 @@ func (a *authService) ResendVerificationService(email string) error {
 		return err
 	}
 	if user.Verified {
-		a.logger.Error().Msg("user already verified")
+		go func() {
+			if err := a.logEmitter.EmitLog("ERR", fmt.Sprintf("user already verified. email:%s", email)); err != nil {
+				a.logger.Error().Err(err).Msg("failed to emit log")
+			}
+		}()
 		return dto.Err_CONFLICT_USER_ALREADY_VERIFIED
 	}
 	verificationToken, err := a.g.GenerateToken()
 	if err != nil {
-		a.logger.Error().Err(err).Msg("error generate verification token")
+		go func() {
+			if err := a.logEmitter.EmitLog("ERR", fmt.Sprintf("error generate verification token. Err:%v", err.Error())); err != nil {
+				a.logger.Error().Err(err).Msg("failed to emit log")
+			}
+		}()
 		return dto.Err_INTERNAL_GENERATE_TOKEN
 	}
 	key := fmt.Sprintf("verificationToken:%s", user.ID)
 	if err := a.authRepository.SetResource(ctx, key, verificationToken, 30*time.Minute); err != nil {
-		a.logger.Error().Err(err).Msg("failed to set verification token")
 		return err
 	}
 	link := fmt.Sprintf("%s/%suserid=%s&token=%s", viper.GetString("app.url"), viper.GetString("app.verification_url"), user.ID, verificationToken)
@@ -253,12 +327,27 @@ func (a *authService) ResendVerificationService(email string) error {
 	}
 	marshalledMsg, err := json.Marshal(msg)
 	if err != nil {
-		a.logger.Error().Err(err).Msg("marshal data error")
+		go func() {
+			if err := a.logEmitter.EmitLog("ERR", fmt.Sprintf("marshal data error. Err:%v", err.Error())); err != nil {
+				a.logger.Error().Err(err).Msg("failed to emit log")
+			}
+		}()
 		return err
 	}
 	_, err = a.js.Publish(ctx, subject, []byte(marshalledMsg))
 	if err != nil {
-		a.logger.Error().Err(err).Msg("publish notification error")
+		go func() {
+			if err := a.logEmitter.EmitLog("ERR", fmt.Sprintf("publish notification error. Err:%v", err.Error())); err != nil {
+				a.logger.Error().Err(err).Msg("failed to emit log")
+			}
+		}()
+		if err := a.authRepository.RemoveResource(ctx, key); err != nil {
+			go func() {
+				if err := a.logEmitter.EmitLog("ERR", fmt.Sprintf("failed to remove reset password token. Err:%v", err.Error())); err != nil {
+					a.logger.Error().Err(err).Msg("failed to emit log")
+				}
+			}()
+		}
 		return dto.Err_INTERNAL_PUBLISH_MESSAGE
 	}
 	return nil
@@ -276,17 +365,19 @@ func (a *authService) VerifyEmailService(userId, token, changeToken string) erro
 		key = fmt.Sprintf("changeEmailToken:%s", userId)
 		rToken, err := a.authRepository.GetResource(ctx, key)
 		if err != nil {
-			a.logger.Error().Err(err).Msg("failed to get resource")
 			return err
 		}
 		if changeToken != rToken {
-			a.logger.Error().Msg("token not match")
+			go func() {
+				if err := a.logEmitter.EmitLog("ERR", "changeEmailToken is invalid"); err != nil {
+					a.logger.Error().Err(err).Msg("failed to emit log")
+				}
+			}()
 			return dto.Err_UNAUTHORIZED_TOKEN_INVALID
 		}
 		newEmailkey := fmt.Sprintf("newEmail:%s", userId)
 		newEmail, err := a.authRepository.GetResource(ctx, newEmailkey)
 		if err != nil {
-			a.logger.Error().Err(err).Msg("failed to get resource")
 			return err
 		}
 		updatedUser = &upb.User{
@@ -300,32 +391,41 @@ func (a *authService) VerifyEmailService(userId, token, changeToken string) erro
 		}
 		_, err = a.userServiceClient.UpdateUser(ctx, updatedUser)
 		if err != nil {
-			a.logger.Error().Err(err).Msg("failed to update user")
+			go func() {
+				if err := a.logEmitter.EmitLog("ERR", fmt.Sprintf("Update user failed. Err:%v", err.Error())); err != nil {
+					a.logger.Error().Err(err).Msg("failed to emit log")
+				}
+			}()
 			return err
 		}
 		err = a.authRepository.RemoveResource(ctx, key)
 		if err != nil {
-			a.logger.Error().Err(err).Msg("failed to remove resource")
 			return err
 		}
 		err = a.authRepository.RemoveResource(ctx, newEmailkey)
 		if err != nil {
-			a.logger.Error().Err(err).Msg("failed to remove resource")
 			return err
 		}
 	} else {
 		if user.Verified {
-			a.logger.Error().Msg("user already verified")
+			go func() {
+				if err := a.logEmitter.EmitLog("ERR", "user already verified"); err != nil {
+					a.logger.Error().Err(err).Msg("failed to emit log")
+				}
+			}()
 			return dto.Err_CONFLICT_USER_ALREADY_VERIFIED
 		}
 		key = fmt.Sprintf("verificationToken:%s", userId)
 		rToken, err := a.authRepository.GetResource(ctx, key)
 		if err != nil {
-			a.logger.Error().Err(err).Msg("failed to get resource")
 			return err
 		}
 		if token != rToken {
-			a.logger.Error().Msg("token not match")
+			go func() {
+				if err := a.logEmitter.EmitLog("ERR", "verificationeEmailToken is invalid"); err != nil {
+					a.logger.Error().Err(err).Msg("failed to emit log")
+				}
+			}()
 			return dto.Err_UNAUTHORIZED_TOKEN_INVALID
 		}
 
@@ -340,12 +440,15 @@ func (a *authService) VerifyEmailService(userId, token, changeToken string) erro
 		}
 		_, err = a.userServiceClient.UpdateUser(ctx, updatedUser)
 		if err != nil {
-			a.logger.Error().Err(err).Msg("failed to update user")
+			go func() {
+				if err := a.logEmitter.EmitLog("ERR", fmt.Sprintf("Update user failed. Err:%v", err.Error())); err != nil {
+					a.logger.Error().Err(err).Msg("failed to emit log")
+				}
+			}()
 			return err
 		}
 		err = a.authRepository.RemoveResource(ctx, key)
 		if err != nil {
-			a.logger.Error().Err(err).Msg("failed to remove resource")
 			return err
 		}
 	}
@@ -356,7 +459,11 @@ func (a *authService) VerifyService(token string) (string, error) {
 	c := context.Background()
 	claims, err := jwt.ValidateJWT(token)
 	if err != nil {
-		a.logger.Error().Err(err).Msg("invalid jwt")
+		go func() {
+			if err := a.logEmitter.EmitLog("ERR", fmt.Sprintf("invalid jwt. Err:%v", err.Error())); err != nil {
+				a.logger.Error().Err(err).Msg("failed to emit log")
+			}
+		}()
 		return "", err
 	}
 	key := "session:" + claims.ID
@@ -365,6 +472,11 @@ func (a *authService) VerifyService(token string) (string, error) {
 		return "", err
 	}
 	if token != rToken {
+		go func() {
+			if err := a.logEmitter.EmitLog("ERR", "invalid jwt. not match with state"); err != nil {
+				a.logger.Error().Err(err).Msg("failed to emit log")
+			}
+		}()
 		return "", dto.Err_UNAUTHORIZED_JWT_INVALID
 	}
 
@@ -375,7 +487,11 @@ func (a *authService) LogoutService(token string) error {
 	c := context.Background()
 	claims, err := jwt.ValidateJWT(token)
 	if err != nil {
-		a.logger.Error().Err(err).Msg("invalid jwt")
+		go func() {
+			if err := a.logEmitter.EmitLog("ERR", fmt.Sprintf("invalid jwt. Err:%v", err.Error())); err != nil {
+				a.logger.Error().Err(err).Msg("failed to emit log")
+			}
+		}()
 		return err
 	}
 	key := "session:" + claims.ID
@@ -388,15 +504,30 @@ func (a *authService) LogoutService(token string) error {
 
 func (a *authService) RegisterService(req dto.RegisterRequest) error {
 	if req.Password != req.ConfirmPassword {
+		go func() {
+			if err := a.logEmitter.EmitLog("ERR", "password and confirm password doesn't match"); err != nil {
+				a.logger.Error().Err(err).Msg("failed to emit log")
+			}
+		}()
 		return dto.Err_BAD_REQUEST_PASSWORD_DOESNT_MATCH
 	}
 	ext := ""
 	if req.Image != nil && req.Image.Filename != "" {
 		ext = _utils.GetFileNameExtension(req.Image.Filename)
 		if ext != "jpg" && ext != "jpeg" && ext != "png" {
+			go func() {
+				if err := a.logEmitter.EmitLog("ERR", dto.Err_BAD_REQUEST_WRONG_EXTENSION.Error()); err != nil {
+					a.logger.Error().Err(err).Msg("failed to emit log")
+				}
+			}()
 			return dto.Err_BAD_REQUEST_WRONG_EXTENSION
 		}
 		if req.Image.Size > constant.MAX_UPLOAD_SIZE {
+			go func() {
+				if err := a.logEmitter.EmitLog("ERR", dto.Err_BAD_REQUEST_LIMIT_SIZE_EXCEEDED.Error()); err != nil {
+					a.logger.Error().Err(err).Msg("failed to emit log")
+				}
+			}()
 			return dto.Err_BAD_REQUEST_LIMIT_SIZE_EXCEEDED
 		}
 	}
@@ -404,24 +535,36 @@ func (a *authService) RegisterService(req dto.RegisterRequest) error {
 	exist, err := a.authRepository.GetUserByEmail(req.Email)
 	if err != nil {
 		if err != dto.Err_NOTFOUND_USER_NOT_FOUND {
-			a.logger.Error().Err(err).Msg("Error Query Get User By Email")
 			return err
 		}
 	}
 	if exist != nil {
-		a.logger.Error().Str("email", req.Email).Msg("User with this email exist")
+		go func() {
+			if err := a.logEmitter.EmitLog("ERR", fmt.Sprintf("User with this email exist. email: %s", req.Email)); err != nil {
+				a.logger.Error().Err(err).Msg("failed to emit log")
+			}
+		}()
 		return dto.Err_CONFLICT_EMAIL_EXIST
 	}
 	password, err := _utils.HashPassword(req.Password)
 	if err != nil {
-		a.logger.Error().Err(err).Msg("Error hashing password")
+		go func() {
+			if err := a.logEmitter.EmitLog("ERR", fmt.Sprintf("Error hashing password. Err: %s", err.Error())); err != nil {
+				a.logger.Error().Err(err).Msg("failed to emit log")
+			}
+		}()
+		return dto.Err_INTERNAL_FAILED_HASH_PASSWORD
 	}
 
 	var imageName *string
 	if req.Image != nil && req.Image.Filename != "" {
 		image, err := _utils.FileToByte(req.Image)
 		if err != nil {
-			a.logger.Error().Err(err).Msg("error converting image")
+			go func() {
+				if err := a.logEmitter.EmitLog("ERR", fmt.Sprintf("error converting image. Err: %s", err.Error())); err != nil {
+					a.logger.Error().Err(err).Msg("failed to emit log")
+				}
+			}()
 			return dto.Err_INTERNAL_CONVERT_IMAGE
 		}
 		imageReq := &fpb.Image{
@@ -430,7 +573,11 @@ func (a *authService) RegisterService(req dto.RegisterRequest) error {
 		}
 		resp, err := a.fileServiceClient.SaveProfileImage(ctx, imageReq)
 		if err != nil {
-			a.logger.Error().Err(err).Msg("Error uploading image to file service")
+			go func() {
+				if err := a.logEmitter.EmitLog("ERR", fmt.Sprintf("Error uploading image to file service. err: %v", err.Error())); err != nil {
+					a.logger.Error().Err(err).Msg("failed to emit log")
+				}
+			}()
 			return err
 		}
 		imageName = _utils.StringPtr(resp.GetName())
@@ -450,40 +597,64 @@ func (a *authService) RegisterService(req dto.RegisterRequest) error {
 	}
 	_, err = a.userServiceClient.CreateUser(ctx, user)
 	if err != nil && req.Image != nil && req.Image.Filename != "" {
-		_, err := a.fileServiceClient.RemoveProfileImage(ctx, &fpb.ImageName{Name: *imageName})
+		if _, err := a.fileServiceClient.RemoveProfileImage(ctx, &fpb.ImageName{Name: *imageName}); err != nil {
+			go func() {
+				if err := a.logEmitter.EmitLog("ERR", fmt.Sprintf("Error remove image via file service. err: %v", err.Error())); err != nil {
+					a.logger.Error().Err(err).Msg("failed to emit log")
+				}
+			}()
+		}
 		return err
 	}
 	verificationToken, err := a.g.GenerateToken()
 	if err != nil {
-		a.logger.Error().Err(err).Msg("error generate verification token")
+		go func() {
+			if err := a.logEmitter.EmitLog("ERR", fmt.Sprintf("error generate verification token. Err:%v", err.Error())); err != nil {
+				a.logger.Error().Err(err).Msg("failed to emit log")
+			}
+		}()
+		// remove user?
 		return dto.Err_INTERNAL_GENERATE_TOKEN
 	}
 
 	key := fmt.Sprintf("verificationToken:%s", userId)
 	if err := a.authRepository.SetResource(ctx, key, verificationToken, 30*time.Minute); err != nil {
-		a.logger.Error().Err(err).Msg("failed to set verification token")
+		// remove user?
 		return err
 	}
-	go func() {
-		link := fmt.Sprintf("%s/%suserid=%s&token=%s", viper.GetString("app.url"), viper.GetString("app.verification_url"), userId, verificationToken)
-		subject := fmt.Sprintf("%s.%s", viper.GetString("jetstream.notification.subject.mail"), userId)
-		msg := &_dto.MailNotificationMessage{
-			Receiver: []string{user.Email},
-			MsgType:  "verification",
-			Message:  link,
+	link := fmt.Sprintf("%s/%suserid=%s&token=%s", viper.GetString("app.url"), viper.GetString("app.verification_url"), userId, verificationToken)
+	subject := fmt.Sprintf("%s.%s", viper.GetString("jetstream.notification.subject.mail"), userId)
+	msg := &_dto.MailNotificationMessage{
+		Receiver: []string{user.Email},
+		MsgType:  "verification",
+		Message:  link,
+	}
+	marshalledMsg, err := json.Marshal(msg)
+	if err != nil {
+		go func() {
+			if err := a.logEmitter.EmitLog("ERR", fmt.Sprintf("marshal data error. Err:%v", err.Error())); err != nil {
+				a.logger.Error().Err(err).Msg("failed to emit log")
+			}
+		}()
+		// remove user?
+		return err
+	}
+	if _, err = a.js.Publish(ctx, subject, []byte(marshalledMsg)); err != nil {
+		go func() {
+			if err := a.logEmitter.EmitLog("ERR", fmt.Sprintf("publish notification error. Err:%v", err.Error())); err != nil {
+				a.logger.Error().Err(err).Msg("failed to emit log")
+			}
+		}()
+		if err := a.authRepository.RemoveResource(ctx, key); err != nil {
+			go func() {
+				if err := a.logEmitter.EmitLog("ERR", fmt.Sprintf("failed to remove verificationEmailToken. Err:%v", err.Error())); err != nil {
+					a.logger.Error().Err(err).Msg("failed to emit log")
+				}
+			}()
 		}
-		marshalledMsg, err := json.Marshal(msg)
-		if err != nil {
-			a.logger.Error().Err(err).Msg("marshal data error")
-			return
-		}
-		_, err = a.js.Publish(ctx, subject, []byte(marshalledMsg))
-		if err != nil {
-			a.logger.Error().Err(err).Msg("publish notification error")
-		} else {
-			a.logger.Info().Msgf("Published message to subject %s", subject)
-		}
-	}()
+		// remove the user?
+		return err
+	}
 	return nil
 }
 
@@ -491,59 +662,91 @@ func (a *authService) LoginService(req dto.LoginRequest) (string, error) {
 	c := context.Background()
 	user, err := a.authRepository.GetUserByEmail(req.Email)
 	if err != nil {
-		a.logger.Error().Err(err).Msg("Error Query Get User By Email")
 		return "", err
 	}
 	if !user.Verified {
-		a.logger.Error().Msgf("user not verified :%s", user.Email)
+		go func() {
+			if err := a.logEmitter.EmitLog("ERR", "user not verified"); err != nil {
+				a.logger.Error().Err(err).Msg("failed to emit log")
+			}
+		}()
 		return "", dto.Err_UNAUTHORIZED_USER_NOT_VERIFIED
 	}
 
 	ok := _utils.HashPasswordCompare(req.Password, user.Password)
 	if !ok {
-		a.logger.Error().Err(err).Msg("Password doesn't match")
+		go func() {
+			if err := a.logEmitter.EmitLog("ERR", fmt.Sprintf("Password doesn't match. email:%s", req.Email)); err != nil {
+				a.logger.Error().Err(err).Msg("failed to emit log")
+			}
+		}()
 		return "", dto.Err_UNAUTHORIZED_PASSWORD_DOESNT_MATCH
 	}
 	if user.TwoFactorEnabled {
 		otp, err := a.g.GenerateOTP()
 		if err != nil {
-			a.logger.Error().Err(err).Msg("generate OTP error")
+			if err := a.logEmitter.EmitLog("ERR", fmt.Sprintf("generate OTP error. Err: %s", err.Error())); err != nil {
+				a.logger.Error().Err(err).Msg("failed to emit log")
+			}
 			return "", dto.Err_INTERNAL_GENERATE_OTP
 		}
 		key := fmt.Sprintf("OTP:%s", user.ID)
 		if err := a.authRepository.SetResource(c, key, otp, 2*time.Minute); err != nil {
-			a.logger.Error().Err(err).Msg("failed to set OTP")
 			return "", err
 		}
 
-		go func() {
-			subject := fmt.Sprintf("%s.%s", viper.GetString("jetstream.notification.subject.mail"), user.ID)
-			msg := &_dto.MailNotificationMessage{
-				Receiver: []string{user.Email},
-				MsgType:  "OTP",
-				Message:  otp,
+		subject := fmt.Sprintf("%s.%s", viper.GetString("jetstream.notification.subject.mail"), user.ID)
+		msg := &_dto.MailNotificationMessage{
+			Receiver: []string{user.Email},
+			MsgType:  "OTP",
+			Message:  otp,
+		}
+		marshalledMsg, err := json.Marshal(msg)
+		if err != nil {
+			go func() {
+				if err := a.logEmitter.EmitLog("ERR", fmt.Sprintf("marshal data error. Err:%v", err.Error())); err != nil {
+					a.logger.Error().Err(err).Msg("failed to emit log")
+				}
+			}()
+			if err := a.authRepository.RemoveResource(context.Background(), key); err != nil {
+				go func() {
+					if err := a.logEmitter.EmitLog("ERR", fmt.Sprintf("failed to remove OTP. Err:%v", err.Error())); err != nil {
+						a.logger.Error().Err(err).Msg("failed to emit log")
+					}
+				}()
 			}
-			marshalledMsg, err := json.Marshal(msg)
-			if err != nil {
-				a.logger.Error().Err(err).Msg("marshal data error")
-				return
+			return "", err
+		}
+		_, err = a.js.Publish(c, subject, []byte(marshalledMsg))
+		if err != nil {
+			go func() {
+				if err := a.logEmitter.EmitLog("ERR", fmt.Sprintf("publish notification error. Err:%v", err.Error())); err != nil {
+					a.logger.Error().Err(err).Msg("failed to emit log")
+				}
+			}()
+			if err := a.authRepository.RemoveResource(context.Background(), key); err != nil {
+				go func() {
+					if err := a.logEmitter.EmitLog("ERR", fmt.Sprintf("failed to remove OTP. Err:%v", err.Error())); err != nil {
+						a.logger.Error().Err(err).Msg("failed to emit log")
+					}
+				}()
 			}
-			_, err = a.js.Publish(c, subject, []byte(marshalledMsg))
-			if err != nil {
-				a.logger.Error().Err(err).Msg("publish notification error")
-			}
-		}()
+			return "", err
+		}
 		return "", nil
 	}
 
 	token, claim, err := jwt.GenerateToken(user.ID, 1*time.Hour)
 	if err != nil {
-		a.logger.Error().Err(err).Msg("Error JWT Signing")
+		go func() {
+			if err := a.logEmitter.EmitLog("ERR", fmt.Sprintf("Error JWT Signing. Err:%v", err.Error())); err != nil {
+				a.logger.Error().Err(err).Msg("failed to emit log")
+			}
+		}()
 		return "", dto.Err_INTENAL_JWT_SIGNING
 	}
 	sessionKey := "session:" + claim.ID
 	if err := a.authRepository.SetResource(c, sessionKey, token, 1*time.Hour); err != nil {
-		a.logger.Error().Err(err).Msg("Error saving token to Redis")
 		return "", err
 	}
 	return token, nil

@@ -4,12 +4,14 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"10.1.20.130/dropping/auth-service/internal/domain/dto"
 	"10.1.20.130/dropping/auth-service/internal/domain/handler"
 	"10.1.20.130/dropping/auth-service/test/mocks"
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -17,18 +19,25 @@ type LogoutHandlerSuite struct {
 	suite.Suite
 	authHandler     handler.AuthHandler
 	mockAuthService *mocks.MockAuthService
+	mockLogEmitter  *mocks.LoggerServiceUtilMock
 }
 
 func (v *LogoutHandlerSuite) SetupSuite() {
 	logger := zerolog.Nop()
 	mockedAuthService := new(mocks.MockAuthService)
+	mockedLogEmitter := new(mocks.LoggerServiceUtilMock)
+
 	v.mockAuthService = mockedAuthService
-	v.authHandler = handler.New(mockedAuthService, logger)
+	v.mockLogEmitter = mockedLogEmitter
+	v.authHandler = handler.New(mockedAuthService, mockedLogEmitter, logger)
 }
 
 func (v *LogoutHandlerSuite) SetupTest() {
 	v.mockAuthService.ExpectedCalls = nil
+	v.mockLogEmitter.ExpectedCalls = nil
+
 	v.mockAuthService.Calls = nil
+	v.mockLogEmitter.Calls = nil
 	gin.SetMode(gin.TestMode)
 }
 
@@ -59,10 +68,13 @@ func (v *LogoutHandlerSuite) TestAuthHandler_LogoutHandler_MissingInput() {
 	ctx, _ := gin.CreateTestContext(w)
 	ctx.Request = httptest.NewRequest("POST", "/logout", nil)
 	ctx.Request.Header.Set("Authorization", token)
+	v.mockLogEmitter.On("EmitLog", "ERR", mock.Anything).Return(nil)
 
 	v.authHandler.Logout(ctx)
 
 	v.Equal(http.StatusUnauthorized, w.Code)
+	time.Sleep(time.Second)
+	v.mockLogEmitter.AssertExpectations(v.T())
 }
 
 func (v *LogoutHandlerSuite) TestAuthHandler_LogoutHandler_InvalidFormat() {
@@ -72,10 +84,14 @@ func (v *LogoutHandlerSuite) TestAuthHandler_LogoutHandler_InvalidFormat() {
 	ctx, _ := gin.CreateTestContext(w)
 	ctx.Request = httptest.NewRequest("POST", "/logout", nil)
 	ctx.Request.Header.Set("Authorization", token)
+	v.mockLogEmitter.On("EmitLog", "ERR", mock.Anything).Return(nil)
 
 	v.authHandler.Logout(ctx)
 
 	v.Equal(http.StatusUnauthorized, w.Code)
+
+	time.Sleep(time.Second)
+	v.mockLogEmitter.AssertExpectations(v.T())
 }
 
 func (v *LogoutHandlerSuite) TestAuthHandler_LogoutHandler_InvalidToken() {

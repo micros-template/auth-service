@@ -5,12 +5,14 @@ import (
 	"encoding/json"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"10.1.20.130/dropping/auth-service/internal/domain/dto"
 	"10.1.20.130/dropping/auth-service/internal/domain/handler"
 	"10.1.20.130/dropping/auth-service/test/mocks"
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -18,18 +20,25 @@ type ResendVerificationOTPHandlerSuite struct {
 	suite.Suite
 	authHandler     handler.AuthHandler
 	mockAuthService *mocks.MockAuthService
+	mockLogEmitter  *mocks.LoggerServiceUtilMock
 }
 
 func (r *ResendVerificationOTPHandlerSuite) SetupSuite() {
 	logger := zerolog.Nop()
 	mockedAuthService := new(mocks.MockAuthService)
+	mockedLogEmitter := new(mocks.LoggerServiceUtilMock)
+
 	r.mockAuthService = mockedAuthService
-	r.authHandler = handler.New(mockedAuthService, logger)
+	r.mockLogEmitter = mockedLogEmitter
+	r.authHandler = handler.New(mockedAuthService, mockedLogEmitter, logger)
 }
 
 func (r *ResendVerificationOTPHandlerSuite) SetupTest() {
 	r.mockAuthService.ExpectedCalls = nil
+	r.mockLogEmitter.ExpectedCalls = nil
+
 	r.mockAuthService.Calls = nil
+	r.mockLogEmitter.Calls = nil
 	gin.SetMode(gin.TestMode)
 }
 
@@ -75,10 +84,15 @@ func (r *ResendVerificationOTPHandlerSuite) TestAuthHandler_ResendVerificationOT
 	ctx, _ := gin.CreateTestContext(w)
 	ctx.Request = request
 
+	r.mockLogEmitter.On("EmitLog", "ERR", mock.Anything).Return(nil)
+
 	r.authHandler.ResendVerificationOTP(ctx)
 
 	r.Equal(400, w.Code)
 	r.Contains(w.Body.String(), "missing email")
+
+	time.Sleep(time.Second)
+	r.mockLogEmitter.AssertExpectations(r.T())
 }
 
 func (r *ResendVerificationOTPHandlerSuite) TestAuthHandler_ResendVerificationOTPHandler_UserNotFound() {

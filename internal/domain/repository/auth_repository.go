@@ -3,11 +3,13 @@ package repository
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	"10.1.20.130/dropping/auth-service/internal/domain/dto"
 	"10.1.20.130/dropping/auth-service/internal/infrastructure/cache"
 	"10.1.20.130/dropping/auth-service/internal/infrastructure/db"
+	"10.1.20.130/dropping/auth-service/pkg/utils"
 	sq "github.com/Masterminds/squirrel"
 	"github.com/dropboks/sharedlib/model"
 	"github.com/jackc/pgx/v5"
@@ -27,14 +29,16 @@ type (
 		redisClient cache.RedisCache
 		logger      zerolog.Logger
 		querier     db.Querier
+		logEmitter  utils.LoggerServiceUtil
 	}
 )
 
-func New(r cache.RedisCache, querier db.Querier, logger zerolog.Logger) AuthRepository {
+func New(r cache.RedisCache, querier db.Querier, logEmitter utils.LoggerServiceUtil, logger zerolog.Logger) AuthRepository {
 	return &authRepository{
 		redisClient: r,
 		logger:      logger,
 		querier:     querier,
+		logEmitter:  logEmitter,
 	}
 }
 
@@ -46,7 +50,11 @@ func (a *authRepository) GetUserByEmail(email string) (*model.User, error) {
 		PlaceholderFormat(sq.Dollar).
 		ToSql()
 	if err != nil {
-		a.logger.Error().Err(err).Msg("failed to build query")
+		go func() {
+			if err := a.logEmitter.EmitLog("ERR", dto.Err_INTERNAL_FAILED_BUILD_QUERY.Error()); err != nil {
+				a.logger.Error().Err(err).Msg("failed to emit log")
+			}
+		}()
 		return nil, dto.Err_INTERNAL_FAILED_BUILD_QUERY
 	}
 
@@ -54,10 +62,18 @@ func (a *authRepository) GetUserByEmail(email string) (*model.User, error) {
 	err = row.Scan(&user.ID, &user.FullName, &user.Image, &user.Email, &user.Password, &user.Verified, &user.TwoFactorEnabled)
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			a.logger.Warn().Str("email", email).Msg("user not found")
+			go func() {
+				if err := a.logEmitter.EmitLog("WARN", fmt.Sprintf("%s user_id: %s", dto.Err_NOTFOUND_USER_NOT_FOUND.Error(), user.ID)); err != nil {
+					a.logger.Error().Err(err).Msg("failed to emit log")
+				}
+			}()
 			return nil, dto.Err_NOTFOUND_USER_NOT_FOUND
 		}
-		a.logger.Error().Err(err).Msg("failed to scan user")
+		go func() {
+			if err := a.logEmitter.EmitLog("ERR", dto.Err_INTERNAL_FAILED_SCAN_USER.Error()); err != nil {
+				a.logger.Error().Err(err).Msg("failed to emit log")
+			}
+		}()
 		return nil, dto.Err_INTERNAL_FAILED_SCAN_USER
 	}
 	return &user, nil
@@ -71,7 +87,11 @@ func (a *authRepository) GetUserByUserId(userId string) (*model.User, error) {
 		PlaceholderFormat(sq.Dollar).
 		ToSql()
 	if err != nil {
-		a.logger.Error().Err(err).Msg("failed to build query")
+		go func() {
+			if err := a.logEmitter.EmitLog("ERR", dto.Err_INTERNAL_FAILED_BUILD_QUERY.Error()); err != nil {
+				a.logger.Error().Err(err).Msg("failed to emit log")
+			}
+		}()
 		return nil, dto.Err_INTERNAL_FAILED_BUILD_QUERY
 	}
 	row := a.querier.QueryRow(context.Background(), query, args...)
@@ -79,10 +99,18 @@ func (a *authRepository) GetUserByUserId(userId string) (*model.User, error) {
 
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
-			a.logger.Warn().Str("id", userId).Msg("user not found")
+			go func() {
+				if err := a.logEmitter.EmitLog("WARN", fmt.Sprintf("%s user_id: %s", dto.Err_NOTFOUND_USER_NOT_FOUND.Error(), user.ID)); err != nil {
+					a.logger.Error().Err(err).Msg("failed to emit log")
+				}
+			}()
 			return nil, dto.Err_NOTFOUND_USER_NOT_FOUND
 		}
-		a.logger.Error().Err(err).Msg("failed to scan user")
+		go func() {
+			if err := a.logEmitter.EmitLog("ERR", dto.Err_INTERNAL_FAILED_SCAN_USER.Error()); err != nil {
+				a.logger.Error().Err(err).Msg("failed to emit log")
+			}
+		}()
 		return nil, dto.Err_INTERNAL_FAILED_SCAN_USER
 	}
 	return &user, nil
@@ -91,6 +119,11 @@ func (a *authRepository) GetUserByUserId(userId string) (*model.User, error) {
 func (a *authRepository) GetResource(c context.Context, key string) (string, error) {
 	v, err := a.redisClient.Get(c, key)
 	if err != nil {
+		go func() {
+			if err := a.logEmitter.EmitLog("ERR", fmt.Sprintf("key: %s - get resource error. err: %v", key, err.Error())); err != nil {
+				a.logger.Error().Err(err).Msg("failed to emit log")
+			}
+		}()
 		if err == redis.Nil {
 			return "", dto.Err_NOTFOUND_KEY_NOTFOUND
 		}
@@ -101,6 +134,11 @@ func (a *authRepository) GetResource(c context.Context, key string) (string, err
 
 func (a *authRepository) RemoveResource(c context.Context, key string) error {
 	if err := a.redisClient.Delete(c, key); err != nil {
+		go func() {
+			if err := a.logEmitter.EmitLog("ERR", fmt.Sprintf("key: %s - remove resource error. err: %v", key, err.Error())); err != nil {
+				a.logger.Error().Err(err).Msg("failed to emit log")
+			}
+		}()
 		return dto.Err_INTERNAL_DELETE_RESOURCE
 	}
 	return nil
@@ -109,6 +147,11 @@ func (a *authRepository) RemoveResource(c context.Context, key string) error {
 func (a *authRepository) SetResource(c context.Context, key, value string, duration time.Duration) error {
 	err := a.redisClient.Set(c, key, value, duration)
 	if err != nil {
+		go func() {
+			if err := a.logEmitter.EmitLog("ERR", fmt.Sprintf("key: %s - set resource error. err: %v", key, err.Error())); err != nil {
+				a.logger.Error().Err(err).Msg("failed to emit log")
+			}
+		}()
 		return dto.Err_INTERNAL_SET_RESOURCE
 	}
 	return nil

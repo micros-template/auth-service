@@ -3,6 +3,7 @@ package service_test
 import (
 	"errors"
 	"testing"
+	"time"
 
 	"10.1.20.130/dropping/auth-service/internal/domain/service"
 	"10.1.20.130/dropping/auth-service/test/mocks"
@@ -20,6 +21,7 @@ type VerifyEmailServiceSuite struct {
 	authService    service.AuthService
 	mockAuthRepo   *mocks.MockAuthRepository
 	mockUserClient *mocks.MockUserServiceClient
+	mockLogEmitter *mocks.LoggerServiceUtilMock
 }
 
 func (v *VerifyEmailServiceSuite) SetupSuite() {
@@ -29,19 +31,23 @@ func (v *VerifyEmailServiceSuite) SetupSuite() {
 	mockFileClient := new(mocks.MockFileServiceClient)
 	mockJetStream := new(mocks.MockNatsInfra)
 	mockGenerator := new(mocks.MockRandomGenerator)
+	mockLogEmitter := new(mocks.LoggerServiceUtilMock)
 
 	logger := zerolog.Nop()
 	v.mockAuthRepo = mockAuthRepo
 	v.mockUserClient = mockUserClient
-	v.authService = service.New(mockAuthRepo, mockUserClient, mockFileClient, logger, mockJetStream, mockGenerator)
+	v.mockLogEmitter = mockLogEmitter
+	v.authService = service.New(mockAuthRepo, mockUserClient, mockFileClient, logger, mockJetStream, mockGenerator, mockLogEmitter)
 }
 
 func (v *VerifyEmailServiceSuite) SetupTest() {
 	v.mockAuthRepo.ExpectedCalls = nil
 	v.mockUserClient.ExpectedCalls = nil
+	v.mockLogEmitter.ExpectedCalls = nil
 
 	v.mockAuthRepo.Calls = nil
 	v.mockUserClient.Calls = nil
+	v.mockLogEmitter.Calls = nil
 }
 
 func TestVerifyEmailServiceSuite(t *testing.T) {
@@ -114,12 +120,15 @@ func (v *VerifyEmailServiceSuite) TestAuthService_VerifyEmailService_AlreadyVeri
 		TwoFactorEnabled: false,
 	}
 
+	v.mockLogEmitter.On("EmitLog", "ERR", mock.Anything).Return(nil)
 	v.mockAuthRepo.On("GetUserByUserId", mock.Anything).Return(mockUser, nil)
 
 	err := v.authService.VerifyEmailService(userId, token, "")
 	v.Error(err)
-
 	v.mockAuthRepo.AssertExpectations(v.T())
+
+	time.Sleep(time.Second)
+	v.mockLogEmitter.AssertExpectations(v.T())
 }
 
 func (v *VerifyEmailServiceSuite) TestAuthService_VerifyEmailService_ExpiredToken() {
@@ -157,11 +166,14 @@ func (v *VerifyEmailServiceSuite) TestAuthService_VerifyEmailService_TokenNotMat
 
 	v.mockAuthRepo.On("GetUserByUserId", mock.Anything).Return(mockUser, nil)
 	v.mockAuthRepo.On("GetResource", mock.Anything, mock.AnythingOfType("string")).Return("valid-verification-token", nil)
+	v.mockLogEmitter.On("EmitLog", "ERR", mock.Anything).Return(nil)
 
 	err := v.authService.VerifyEmailService(userId, token, "")
 	v.Error(err)
 
 	v.mockAuthRepo.AssertExpectations(v.T())
+	time.Sleep(time.Second)
+	v.mockLogEmitter.AssertExpectations(v.T())
 }
 
 func (v *VerifyEmailServiceSuite) TestAuthService_VerifyEmailService_UserNotFoundWhenUpdating() {
@@ -179,12 +191,16 @@ func (v *VerifyEmailServiceSuite) TestAuthService_VerifyEmailService_UserNotFoun
 	v.mockAuthRepo.On("GetUserByUserId", mock.Anything).Return(mockUser, nil)
 	v.mockAuthRepo.On("GetResource", mock.Anything, mock.AnythingOfType("string")).Return(token, nil)
 	v.mockUserClient.On("UpdateUser", mock.Anything, mock.Anything, mock.Anything).Return(nil, status.Error(codes.NotFound, "user-not-found"))
+	v.mockLogEmitter.On("EmitLog", "ERR", mock.Anything).Return(nil)
 
 	err := v.authService.VerifyEmailService(userId, token, "")
 	v.Error(err)
 
 	v.mockUserClient.AssertExpectations(v.T())
 	v.mockAuthRepo.AssertExpectations(v.T())
+
+	time.Sleep(time.Second)
+	v.mockLogEmitter.AssertExpectations(v.T())
 }
 
 func (v *VerifyEmailServiceSuite) TestAuthService_VerifyEmailService_ExpiredChangeEmailToken() {
@@ -222,9 +238,12 @@ func (v *VerifyEmailServiceSuite) TestAuthService_VerifyEmailService_ChangeToken
 
 	v.mockAuthRepo.On("GetUserByUserId", mock.Anything).Return(mockUser, nil)
 	v.mockAuthRepo.On("GetResource", mock.Anything, mock.AnythingOfType("string")).Return("valid-change-email-verification-token", nil)
+	v.mockLogEmitter.On("EmitLog", "ERR", mock.Anything).Return(nil)
 
 	err := v.authService.VerifyEmailService(userId, "", changeToken)
 	v.Error(err)
 
 	v.mockAuthRepo.AssertExpectations(v.T())
+	time.Sleep(time.Second)
+	v.mockLogEmitter.AssertExpectations(v.T())
 }

@@ -2,6 +2,7 @@ package repository_test
 
 import (
 	"testing"
+	"time"
 
 	"10.1.20.130/dropping/auth-service/internal/domain/dto"
 	"10.1.20.130/dropping/auth-service/internal/domain/repository"
@@ -10,6 +11,7 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/pashagolub/pgxmock/v4"
 	"github.com/rs/zerolog"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 )
 
@@ -17,6 +19,7 @@ type GetUserByIdRepositorySuite struct {
 	suite.Suite
 	authRepository  repository.AuthRepository
 	mockRedisClient *mocks.MockRedisCache
+	mockLogEmitter  *mocks.LoggerServiceUtilMock
 	mockPgx         pgxmock.PgxPoolIface
 }
 
@@ -24,16 +27,20 @@ func (g *GetUserByIdRepositorySuite) SetupSuite() {
 
 	logger := zerolog.Nop()
 	redisClient := new(mocks.MockRedisCache)
+	mockedLogEmitter := new(mocks.LoggerServiceUtilMock)
 	pgxMock, err := pgxmock.NewPool()
 	g.NoError(err)
 	g.mockPgx = pgxMock
 	g.mockRedisClient = redisClient
-	g.authRepository = repository.New(redisClient, pgxMock, logger)
+	g.mockLogEmitter = mockedLogEmitter
+	g.authRepository = repository.New(redisClient, pgxMock, mockedLogEmitter, logger)
 }
 
 func (g *GetUserByIdRepositorySuite) SetupTest() {
 	g.mockRedisClient.ExpectedCalls = nil
+	g.mockLogEmitter.ExpectedCalls = nil
 	g.mockRedisClient.Calls = nil
+	g.mockLogEmitter.Calls = nil
 }
 
 func TestGetUserByIdRepositorySuite(t *testing.T) {
@@ -77,10 +84,13 @@ func (g *GetUserByIdRepositorySuite) TestAuthRepository_GetUserById_NotFound() {
 	userId := "notfound"
 	query := `SELECT id, full_name, image, email, password, verified, two_factor_enabled FROM users WHERE id = \$1`
 	g.mockPgx.ExpectQuery(query).WithArgs(userId).WillReturnError(pgx.ErrNoRows)
+	g.mockLogEmitter.On("EmitLog", "WARN", mock.Anything).Return(nil)
 
 	user, err := g.authRepository.GetUserByUserId(userId)
 	g.Nil(user)
 	g.ErrorIs(err, dto.Err_NOTFOUND_USER_NOT_FOUND)
+	time.Sleep(time.Second)
+	g.mockLogEmitter.AssertExpectations(g.T())
 }
 
 func (g *GetUserByIdRepositorySuite) TestAuthRepository_GetUserById_ScanError() {
@@ -98,8 +108,12 @@ func (g *GetUserByIdRepositorySuite) TestAuthRepository_GetUserById_ScanError() 
 	)
 	query := `SELECT id, full_name, image, email, password, verified, two_factor_enabled FROM users WHERE id = \$1`
 	g.mockPgx.ExpectQuery(query).WithArgs(userId).WillReturnRows(rows)
+	g.mockLogEmitter.On("EmitLog", "ERR", mock.Anything).Return(nil)
 
 	user, err := g.authRepository.GetUserByUserId(userId)
 	g.Nil(user)
 	g.ErrorIs(err, dto.Err_INTERNAL_FAILED_SCAN_USER)
+
+	time.Sleep(time.Second)
+	g.mockLogEmitter.AssertExpectations(g.T())
 }

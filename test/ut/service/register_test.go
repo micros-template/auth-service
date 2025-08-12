@@ -27,6 +27,7 @@ type RegisterServiceSuite struct {
 	mockFileClient *mocks.MockFileServiceClient
 	mockJetStream  *mocks.MockNatsInfra
 	mockGenerator  *mocks.MockRandomGenerator
+	mockLogEmitter *mocks.LoggerServiceUtilMock
 }
 
 func (r *RegisterServiceSuite) SetupSuite() {
@@ -36,6 +37,7 @@ func (r *RegisterServiceSuite) SetupSuite() {
 	mockFileClient := new(mocks.MockFileServiceClient)
 	mockJetStream := new(mocks.MockNatsInfra)
 	mockGenerator := new(mocks.MockRandomGenerator)
+	mockLogEmitter := new(mocks.LoggerServiceUtilMock)
 
 	logger := zerolog.Nop()
 	r.mockAuthRepo = mockAuthRepo
@@ -43,7 +45,8 @@ func (r *RegisterServiceSuite) SetupSuite() {
 	r.mockFileClient = mockFileClient
 	r.mockJetStream = mockJetStream
 	r.mockGenerator = mockGenerator
-	r.authService = service.New(mockAuthRepo, mockUserClient, mockFileClient, logger, mockJetStream, mockGenerator)
+	r.mockLogEmitter = mockLogEmitter
+	r.authService = service.New(mockAuthRepo, mockUserClient, mockFileClient, logger, mockJetStream, mockGenerator, mockLogEmitter)
 }
 
 func (r *RegisterServiceSuite) SetupTest() {
@@ -52,11 +55,14 @@ func (r *RegisterServiceSuite) SetupTest() {
 	r.mockFileClient.ExpectedCalls = nil
 	r.mockJetStream.ExpectedCalls = nil
 	r.mockGenerator.ExpectedCalls = nil
+	r.mockLogEmitter.ExpectedCalls = nil
+
 	r.mockAuthRepo.Calls = nil
 	r.mockUserClient.Calls = nil
 	r.mockFileClient.Calls = nil
 	r.mockJetStream.Calls = nil
 	r.mockGenerator.Calls = nil
+	r.mockLogEmitter.Calls = nil
 }
 
 func TestRegisterServiceSuite(t *testing.T) {
@@ -119,9 +125,13 @@ func (r *RegisterServiceSuite) TestAuthService_RegisterService_PasswordNotMatch(
 		Password:        "password1234",
 		ConfirmPassword: "password123",
 	}
+	r.mockLogEmitter.On("EmitLog", "ERR", mock.Anything).Return(nil)
 
 	err := r.authService.RegisterService(registerReq)
 	r.Error(err)
+
+	time.Sleep(time.Second)
+	r.mockLogEmitter.AssertExpectations(r.T())
 }
 func (r *RegisterServiceSuite) TestAuthService_RegisterService_WrongImageExtension() {
 	imageData := bytes.Repeat([]byte("test"), 1024)
@@ -146,9 +156,13 @@ func (r *RegisterServiceSuite) TestAuthService_RegisterService_WrongImageExtensi
 		Password:        "password123",
 		ConfirmPassword: "password123",
 	}
+	r.mockLogEmitter.On("EmitLog", "ERR", mock.Anything).Return(nil)
 
 	err := r.authService.RegisterService(registerReq)
 	r.Error(err)
+
+	time.Sleep(time.Second)
+	r.mockLogEmitter.AssertExpectations(r.T())
 }
 func (r *RegisterServiceSuite) TestAuthService_RegisterService_ImageSizeExceeded() {
 	imageData := bytes.Repeat([]byte("test"), 8*1024*1024)
@@ -173,9 +187,13 @@ func (r *RegisterServiceSuite) TestAuthService_RegisterService_ImageSizeExceeded
 		Password:        "password123",
 		ConfirmPassword: "password123",
 	}
+	r.mockLogEmitter.On("EmitLog", "ERR", mock.Anything).Return(nil)
 
 	err := r.authService.RegisterService(registerReq)
 	r.Error(err)
+
+	time.Sleep(time.Second)
+	r.mockLogEmitter.AssertExpectations(r.T())
 }
 func (r *RegisterServiceSuite) TestAuthService_RegisterService_EmailAlreadyExist() {
 
@@ -195,9 +213,12 @@ func (r *RegisterServiceSuite) TestAuthService_RegisterService_EmailAlreadyExist
 		TwoFactorEnabled: false,
 	}
 	r.mockAuthRepo.On("GetUserByEmail", mock.Anything).Return(mockUser, nil)
+	r.mockLogEmitter.On("EmitLog", "ERR", mock.Anything).Return(nil)
 
 	err := r.authService.RegisterService(registerReq)
 	r.Error(err)
 
 	r.mockAuthRepo.AssertExpectations(r.T())
+	time.Sleep(time.Second)
+	r.mockLogEmitter.AssertExpectations(r.T())
 }
