@@ -114,6 +114,8 @@ trivy_scan_image:
     name: aquasec/trivy:latest
     entrypoint: [""]
   allow_failure: true
+  before_script:
+    - apk add --no-cache docker
   script:
     - VERSION=$(cat VERSION)
     - echo "🔍 Logging in to GitLab container registry..."
