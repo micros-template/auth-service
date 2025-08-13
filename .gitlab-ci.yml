@@ -6,6 +6,10 @@ stages:
   - post-pipeline
   - deploy
 
+variables:
+  TRIVY_SEVERITY: "CRITICAL,HIGH"
+  TRIVY_EXIT_CODE: "1"
+
 staticcheck:
   stage: lint
   image: golang:1.24-alpine3.22
@@ -46,6 +50,15 @@ sast:
         exit 1
       fi
   allow_failure: false
+
+trivy_scan_code:
+  stage: security
+  image:
+    name: aquasec/trivy:latest
+    entrypoint: [""]
+  script:
+    - echo "🔍 Scanning source code & configs..."
+    - trivy fs --exit-code $TRIVY_EXIT_CODE --severity $TRIVY_SEVERITY .
 
 build_test_image:
   stage: test
@@ -94,6 +107,21 @@ image_build:
   script:
     - chmod +x ./bin/build.sh
     - ./bin/build.sh
+
+trivy_scan_image:
+  stage: post-pipeline
+  image:
+    name: aquasec/trivy:latest
+    entrypoint: [""]
+  allow_failure: true
+  script:
+    - VERSION=$(cat VERSION)
+    - echo "🔍 Logging in to GitLab container registry..."
+    - echo "$CI_JOB_TOKEN" | docker login -u gitlab-ci-token --password-stdin "$CI_REGISTRY"
+    - echo "🔍 Pulling image for scanning..."
+    - docker pull "$CI_REGISTRY_IMAGE:$VERSION"
+    - echo "🔍 Scanning pushed Docker image..."
+    - trivy image --exit-code $TRIVY_EXIT_CODE --severity $TRIVY_SEVERITY "$CI_REGISTRY_IMAGE:$VERSION"
 
 update_version:
   stage: post-pipeline
