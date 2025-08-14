@@ -17,7 +17,7 @@ import (
 type SetResourceRepositorySuite struct {
 	suite.Suite
 	authRepository  repository.AuthRepository
-	mockLogEmitter  *mocks.LoggerServiceUtilMock
+	mockLogEmitter  *mocks.LoggerInfraMock
 	mockRedisClient *mocks.MockRedisCache
 }
 
@@ -25,7 +25,7 @@ func (s *SetResourceRepositorySuite) SetupSuite() {
 
 	logger := zerolog.Nop()
 	redisClient := new(mocks.MockRedisCache)
-	mockedLogEmitter := new(mocks.LoggerServiceUtilMock)
+	mockedLogEmitter := new(mocks.LoggerInfraMock)
 	pgxMock, err := pgxmock.NewPool()
 	s.NoError(err)
 	s.mockRedisClient = redisClient

@@ -20,7 +20,7 @@ type GetUserByEmailRepositorySuite struct {
 	suite.Suite
 	authRepository  repository.AuthRepository
 	mockRedisClient *mocks.MockRedisCache
-	mockLogEmitter  *mocks.LoggerServiceUtilMock
+	mockLogEmitter  *mocks.LoggerInfraMock
 	mockPgx         pgxmock.PgxPoolIface
 }
 
@@ -28,7 +28,7 @@ func (g *GetUserByEmailRepositorySuite) SetupSuite() {
 
 	logger := zerolog.Nop()
 	redisClient := new(mocks.MockRedisCache)
-	mockedLogEmitter := new(mocks.LoggerServiceUtilMock)
+	mockedLogEmitter := new(mocks.LoggerInfraMock)
 	pgxMock, err := pgxmock.NewPool()
 	g.NoError(err)
 	g.mockPgx = pgxMock

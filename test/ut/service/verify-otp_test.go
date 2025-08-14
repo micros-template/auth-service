@@ -18,7 +18,7 @@ type VerifyOTPServiceSuite struct {
 	suite.Suite
 	authService    service.AuthService
 	mockAuthRepo   *mocks.MockAuthRepository
-	mockLogEmitter *mocks.LoggerServiceUtilMock
+	mockLogEmitter *mocks.LoggerInfraMock
 }
 
 func (v *VerifyOTPServiceSuite) SetupSuite() {
@@ -28,7 +28,7 @@ func (v *VerifyOTPServiceSuite) SetupSuite() {
 	mockFileClient := new(mocks.MockFileServiceClient)
 	mockJetStream := new(mocks.MockNatsInfra)
 	mockGenerator := new(mocks.MockRandomGenerator)
-	mockLogEmitter := new(mocks.LoggerServiceUtilMock)
+	mockLogEmitter := new(mocks.LoggerInfraMock)
 
 	logger := zerolog.Nop()
 	v.mockAuthRepo = mockAuthRepo

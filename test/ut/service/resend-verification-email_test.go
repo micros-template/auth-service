@@ -21,7 +21,7 @@ type ResendVerificationEmailServiceSuite struct {
 	mockUserClient *mocks.MockUserServiceClient
 	mockJetStream  *mocks.MockNatsInfra
 	mockGenerator  *mocks.MockRandomGenerator
-	mockLogEmitter *mocks.LoggerServiceUtilMock
+	mockLogEmitter *mocks.LoggerInfraMock
 }
 
 func (r *ResendVerificationEmailServiceSuite) SetupSuite() {
@@ -31,7 +31,7 @@ func (r *ResendVerificationEmailServiceSuite) SetupSuite() {
 	mockFileClient := new(mocks.MockFileServiceClient)
 	mockJetStream := new(mocks.MockNatsInfra)
 	mockGenerator := new(mocks.MockRandomGenerator)
-	mockLogEmitter := new(mocks.LoggerServiceUtilMock)
+	mockLogEmitter := new(mocks.LoggerInfraMock)
 
 	logger := zerolog.Nop()
 	r.mockAuthRepo = mockAuthRepo

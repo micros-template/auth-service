@@ -18,14 +18,14 @@ type RemoveResourceRepositorySuite struct {
 	suite.Suite
 	authRepository  repository.AuthRepository
 	mockRedisClient *mocks.MockRedisCache
-	mockLogEmitter  *mocks.LoggerServiceUtilMock
+	mockLogEmitter  *mocks.LoggerInfraMock
 }
 
 func (s *RemoveResourceRepositorySuite) SetupSuite() {
 
 	logger := zerolog.Nop()
 	redisClient := new(mocks.MockRedisCache)
-	mockedLogEMitter := new(mocks.LoggerServiceUtilMock)
+	mockedLogEMitter := new(mocks.LoggerInfraMock)
 	pgxMock, err := pgxmock.NewPool()
 
 	s.NoError(err)

@@ -21,7 +21,7 @@ type VerifyEmailServiceSuite struct {
 	authService    service.AuthService
 	mockAuthRepo   *mocks.MockAuthRepository
 	mockUserClient *mocks.MockUserServiceClient
-	mockLogEmitter *mocks.LoggerServiceUtilMock
+	mockLogEmitter *mocks.LoggerInfraMock
 }
 
 func (v *VerifyEmailServiceSuite) SetupSuite() {
@@ -31,7 +31,7 @@ func (v *VerifyEmailServiceSuite) SetupSuite() {
 	mockFileClient := new(mocks.MockFileServiceClient)
 	mockJetStream := new(mocks.MockNatsInfra)
 	mockGenerator := new(mocks.MockRandomGenerator)
-	mockLogEmitter := new(mocks.LoggerServiceUtilMock)
+	mockLogEmitter := new(mocks.LoggerInfraMock)
 
 	logger := zerolog.Nop()
 	v.mockAuthRepo = mockAuthRepo

@@ -3,7 +3,7 @@ package di
 import (
 	_cache "10.1.20.130/dropping/auth-service/config/cache"
 	logemitter "10.1.20.130/dropping/auth-service/config/log_emitter"
-	"10.1.20.130/dropping/auth-service/config/logger"
+	logger "10.1.20.130/dropping/auth-service/config/logger"
 	mq "10.1.20.130/dropping/auth-service/config/message-queue"
 	"10.1.20.130/dropping/auth-service/config/router"
 	"10.1.20.130/dropping/auth-service/config/storage"
@@ -13,9 +13,9 @@ import (
 	cache "10.1.20.130/dropping/auth-service/internal/infrastructure/cache"
 	"10.1.20.130/dropping/auth-service/internal/infrastructure/db"
 	"10.1.20.130/dropping/auth-service/internal/infrastructure/grpc"
+	_logger "10.1.20.130/dropping/auth-service/internal/infrastructure/logger"
 	_mq "10.1.20.130/dropping/auth-service/internal/infrastructure/message-queue"
 	"10.1.20.130/dropping/auth-service/pkg/generators"
-	"10.1.20.130/dropping/auth-service/pkg/utils"
 	"go.uber.org/dig"
 )
 
@@ -53,7 +53,7 @@ func BuildContainer() *dig.Container {
 		panic("Failed to provide log emitter: " + err.Error())
 	}
 	// log emitter infra
-	if err := container.Provide(utils.NewLoggerServiceUtil); err != nil {
+	if err := container.Provide(_logger.NewLoggerInfra); err != nil {
 		panic("Failed to provide log emitter infra: " + err.Error())
 	}
 	// user event consumer

@@ -25,7 +25,7 @@ type ChangePasswordServiceSuite struct {
 	mockFileClient *mocks.MockFileServiceClient
 	mockJetStream  *mocks.MockNatsInfra
 	mockGenerator  *mocks.MockRandomGenerator
-	mockLogEmitter *mocks.LoggerServiceUtilMock
+	mockLogEmitter *mocks.LoggerInfraMock
 }
 
 func (c *ChangePasswordServiceSuite) SetupSuite() {
@@ -35,7 +35,7 @@ func (c *ChangePasswordServiceSuite) SetupSuite() {
 	mockFileClient := new(mocks.MockFileServiceClient)
 	mockJetStream := new(mocks.MockNatsInfra)
 	mockGenerator := new(mocks.MockRandomGenerator)
-	mockLogEmitter := new(mocks.LoggerServiceUtilMock)
+	mockLogEmitter := new(mocks.LoggerInfraMock)
 
 	logger := zerolog.Nop()
 	c.mockAuthRepo = mockAuthRepo

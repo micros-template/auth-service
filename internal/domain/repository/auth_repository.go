@@ -9,7 +9,7 @@ import (
 	"10.1.20.130/dropping/auth-service/internal/domain/dto"
 	"10.1.20.130/dropping/auth-service/internal/infrastructure/cache"
 	"10.1.20.130/dropping/auth-service/internal/infrastructure/db"
-	"10.1.20.130/dropping/auth-service/pkg/utils"
+	"10.1.20.130/dropping/auth-service/internal/infrastructure/logger"
 	"10.1.20.130/dropping/sharedlib/model"
 	sq "github.com/Masterminds/squirrel"
 	"github.com/jackc/pgx/v5"
@@ -29,11 +29,11 @@ type (
 		redisClient cache.RedisCache
 		logger      zerolog.Logger
 		querier     db.Querier
-		logEmitter  utils.LoggerServiceUtil
+		logEmitter  logger.LoggerInfra
 	}
 )
 
-func New(r cache.RedisCache, querier db.Querier, logEmitter utils.LoggerServiceUtil, logger zerolog.Logger) AuthRepository {
+func New(r cache.RedisCache, querier db.Querier, logEmitter logger.LoggerInfra, logger zerolog.Logger) AuthRepository {
 	return &authRepository{
 		redisClient: r,
 		logger:      logger,

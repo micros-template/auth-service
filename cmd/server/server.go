@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net"
 	"net/http"
@@ -9,6 +10,7 @@ import (
 
 	"10.1.20.130/dropping/auth-service/internal/domain/handler"
 	"10.1.20.130/dropping/auth-service/internal/infrastructure/grpc"
+	"10.1.20.130/dropping/auth-service/internal/infrastructure/logger"
 	event "10.1.20.130/dropping/event-bus-client/pkg/event/user"
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -37,6 +39,7 @@ func (s *Server) Run(ctx context.Context) {
 			pgx *pgxpool.Pool,
 			ue event.UserEventConsumer,
 			js jetstream.JetStream,
+			logEmitter logger.LoggerInfra,
 		) {
 			defer grpcClientManager.CloseAllConnections()
 			defer func() {
@@ -61,14 +64,15 @@ func (s *Server) Run(ctx context.Context) {
 
 			go func() {
 				if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+					if err := logEmitter.EmitLog("ERR", fmt.Sprintf("failed to listen an serve http server:%v", err)); err != nil {
+						logger.Error().Err(err).Msg("failed to emit log")
+					}
 					logger.Fatal().Err(err).Msg("Failed to listen and server http server")
 				}
 			}()
 
 			// init consumer here
 			go ue.StartConsume()
-
-			logger.Info().Msgf("HTTP Server Starting in port %s", s.Address)
 
 			if s.ServerReady != nil {
 				for range 50 {
@@ -84,13 +88,27 @@ func (s *Server) Run(ctx context.Context) {
 				}
 			}
 
+			if err := logEmitter.EmitLog("INFO", fmt.Sprintf("HTTP Server Starting in port %s", s.Address)); err != nil {
+				logger.Error().Err(err).Msg("failed to emit log")
+			}
+			logger.Info().Msgf("HTTP Server Starting in port %s", s.Address)
+
 			<-ctx.Done()
+			if err := logEmitter.EmitLog("INFO", "Shutting down HTTP server..."); err != nil {
+				logger.Error().Err(err).Msg("failed to emit log")
+			}
 			logger.Info().Msg("Shutting down server...")
 
 			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 			defer cancel()
 			if err := srv.Shutdown(ctx); err != nil {
-				logger.Fatal().Err(err).Msg("Server forced to shutdown")
+				if err := logEmitter.EmitLog("ERR", fmt.Sprintf("HTTP Server forced to shutdown:%v", err)); err != nil {
+					logger.Error().Err(err).Msg("failed to emit log")
+				}
+				logger.Fatal().Err(err).Msg("HTTP Server forced to shutdown")
+			}
+			if err := logEmitter.EmitLog("INFO", "HTTP server exiting..."); err != nil {
+				logger.Error().Err(err).Msg("failed to emit log")
 			}
 			logger.Info().Msg("Server exiting...")
 		})

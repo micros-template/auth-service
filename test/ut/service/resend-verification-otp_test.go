@@ -29,7 +29,7 @@ func (r *ResendVerificationOTPServiceSuite) SetupSuite() {
 	mockFileClient := new(mocks.MockFileServiceClient)
 	mockJetStream := new(mocks.MockNatsInfra)
 	mockGenerator := new(mocks.MockRandomGenerator)
-	mockLogEmitter := new(mocks.LoggerServiceUtilMock)
+	mockLogEmitter := new(mocks.LoggerInfraMock)
 
 	logger := zerolog.Nop()
 	r.mockAuthRepo = mockAuthRepo

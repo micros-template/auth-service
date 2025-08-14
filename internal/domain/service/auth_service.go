@@ -9,11 +9,11 @@ import (
 
 	dto "10.1.20.130/dropping/auth-service/internal/domain/dto"
 	"10.1.20.130/dropping/auth-service/internal/domain/repository"
+	"10.1.20.130/dropping/auth-service/internal/infrastructure/logger"
 	_mq "10.1.20.130/dropping/auth-service/internal/infrastructure/message-queue"
 	"10.1.20.130/dropping/auth-service/pkg/constant"
 	"10.1.20.130/dropping/auth-service/pkg/generators"
 	"10.1.20.130/dropping/auth-service/pkg/jwt"
-	"10.1.20.130/dropping/auth-service/pkg/utils"
 	fpb "10.1.20.130/dropping/proto-file/pkg/fpb"
 	upb "10.1.20.130/dropping/proto-user/pkg/upb"
 	_dto "10.1.20.130/dropping/sharedlib/dto"
@@ -42,11 +42,11 @@ type (
 		logger            zerolog.Logger
 		js                _mq.Nats
 		g                 generators.RandomGenerator
-		logEmitter        utils.LoggerServiceUtil
+		logEmitter        logger.LoggerInfra
 	}
 )
 
-func New(authRepository repository.AuthRepository, userServiceClient upb.UserServiceClient, fileServiceClient fpb.FileServiceClient, logger zerolog.Logger, js _mq.Nats, g generators.RandomGenerator, logEmitter utils.LoggerServiceUtil) AuthService {
+func New(authRepository repository.AuthRepository, userServiceClient upb.UserServiceClient, fileServiceClient fpb.FileServiceClient, logger zerolog.Logger, js _mq.Nats, g generators.RandomGenerator, logEmitter logger.LoggerInfra) AuthService {
 	return &authService{
 		authRepository:    authRepository,
 		userServiceClient: userServiceClient,

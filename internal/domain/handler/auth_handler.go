@@ -6,7 +6,7 @@ import (
 
 	"10.1.20.130/dropping/auth-service/internal/domain/dto"
 	"10.1.20.130/dropping/auth-service/internal/domain/service"
-	u "10.1.20.130/dropping/auth-service/pkg/utils"
+	"10.1.20.130/dropping/auth-service/internal/infrastructure/logger"
 	"10.1.20.130/dropping/sharedlib/utils"
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog"
@@ -30,11 +30,11 @@ type (
 	authHandler struct {
 		authService service.AuthService
 		logger      zerolog.Logger
-		logEmitter  u.LoggerServiceUtil
+		logEmitter  logger.LoggerInfra
 	}
 )
 
-func New(authService service.AuthService, logEmitter u.LoggerServiceUtil, logger zerolog.Logger) AuthHandler {
+func New(authService service.AuthService, logEmitter logger.LoggerInfra, logger zerolog.Logger) AuthHandler {
 	return &authHandler{
 		authService: authService,
 		logger:      logger,
