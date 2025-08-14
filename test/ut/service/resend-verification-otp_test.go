@@ -6,7 +6,7 @@ import (
 	"10.1.20.130/dropping/auth-service/internal/domain/dto"
 	"10.1.20.130/dropping/auth-service/internal/domain/service"
 	"10.1.20.130/dropping/auth-service/test/mocks"
-	"github.com/dropboks/sharedlib/model"
+	"10.1.20.130/dropping/sharedlib/model"
 	"github.com/nats-io/nats.go/jetstream"
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/assert"

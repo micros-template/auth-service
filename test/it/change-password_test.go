@@ -14,7 +14,7 @@ import (
 	"time"
 
 	"10.1.20.130/dropping/auth-service/test/helper"
-	_helper "github.com/dropboks/sharedlib/test/helper"
+	_helper "10.1.20.130/dropping/sharedlib/test/helper"
 	"github.com/gin-gonic/gin"
 	"github.com/spf13/viper"
 	"github.com/stretchr/testify/suite"

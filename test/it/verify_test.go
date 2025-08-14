@@ -13,7 +13,7 @@ import (
 	"github.com/spf13/viper"
 
 	"10.1.20.130/dropping/auth-service/test/helper"
-	_helper "github.com/dropboks/sharedlib/test/helper"
+	_helper "10.1.20.130/dropping/sharedlib/test/helper"
 	"github.com/stretchr/testify/suite"
 	"github.com/testcontainers/testcontainers-go"
 )

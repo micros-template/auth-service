@@ -9,7 +9,7 @@ import (
 
 	"10.1.20.130/dropping/auth-service/internal/domain/handler"
 	"10.1.20.130/dropping/auth-service/internal/infrastructure/grpc"
-	event "github.com/dropboks/event-bus-client/pkg/event/user"
+	event "10.1.20.130/dropping/event-bus-client/pkg/event/user"
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/nats-io/nats.go"

@@ -1,8 +1,8 @@
 package grpc
 
 import (
-	fileProto "github.com/dropboks/proto-file/pkg/fpb"
-	userProto "github.com/dropboks/proto-user/pkg/upb"
+	fileProto "10.1.20.130/dropping/proto-file/pkg/fpb"
+	userProto "10.1.20.130/dropping/proto-user/pkg/upb"
 	"github.com/spf13/viper"
 )
 

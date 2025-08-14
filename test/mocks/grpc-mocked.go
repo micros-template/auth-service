@@ -3,8 +3,8 @@ package mocks
 import (
 	"context"
 
-	fpb "github.com/dropboks/proto-file/pkg/fpb"
-	upb "github.com/dropboks/proto-user/pkg/upb"
+	fpb "10.1.20.130/dropping/proto-file/pkg/fpb"
+	upb "10.1.20.130/dropping/proto-user/pkg/upb"
 	m "github.com/stretchr/testify/mock"
 	"google.golang.org/grpc"
 )
@@ -12,22 +12,6 @@ import (
 // MockUserServiceClient mocks the gRPC UserServiceClient
 type MockUserServiceClient struct {
 	m.Mock
-}
-
-func (m *MockUserServiceClient) GetUserByEmail(ctx context.Context, in *upb.Email, opts ...grpc.CallOption) (*upb.User, error) {
-	args := m.Called(ctx, in)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).(*upb.User), args.Error(1)
-}
-
-func (m *MockUserServiceClient) GetUserByUserId(ctx context.Context, in *upb.UserId, opts ...grpc.CallOption) (*upb.User, error) {
-	args := m.Called(ctx, in)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
-	}
-	return args.Get(0).(*upb.User), args.Error(1)
 }
 
 func (m *MockUserServiceClient) CreateUser(ctx context.Context, in *upb.User, opts ...grpc.CallOption) (*upb.Status, error) {
@@ -39,6 +23,14 @@ func (m *MockUserServiceClient) CreateUser(ctx context.Context, in *upb.User, op
 }
 
 func (m *MockUserServiceClient) UpdateUser(ctx context.Context, in *upb.User, opts ...grpc.CallOption) (*upb.Status, error) {
+	args := m.Called(ctx, in)
+	if args.Get(0) == nil {
+		return nil, args.Error(1)
+	}
+	return args.Get(0).(*upb.Status), args.Error(1)
+}
+
+func (m *MockUserServiceClient) DeleteUser(ctx context.Context, in *upb.UserId, opts ...grpc.CallOption) (*upb.Status, error) {
 	args := m.Called(ctx, in)
 	if args.Get(0) == nil {
 		return nil, args.Error(1)

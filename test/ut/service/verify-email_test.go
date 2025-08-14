@@ -7,8 +7,8 @@ import (
 
 	"10.1.20.130/dropping/auth-service/internal/domain/service"
 	"10.1.20.130/dropping/auth-service/test/mocks"
-	upb "github.com/dropboks/proto-user/pkg/upb"
-	"github.com/dropboks/sharedlib/model"
+	upb "10.1.20.130/dropping/proto-user/pkg/upb"
+	"10.1.20.130/dropping/sharedlib/model"
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"

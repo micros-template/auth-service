@@ -7,7 +7,7 @@ import (
 	"10.1.20.130/dropping/auth-service/internal/domain/dto"
 	"10.1.20.130/dropping/auth-service/internal/domain/service"
 	u "10.1.20.130/dropping/auth-service/pkg/utils"
-	"github.com/dropboks/sharedlib/utils"
+	"10.1.20.130/dropping/sharedlib/utils"
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog"
 	"google.golang.org/grpc/codes"

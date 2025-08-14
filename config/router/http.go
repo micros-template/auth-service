@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"10.1.20.130/dropping/log-management/pkg"
-	middleware "github.com/dropboks/sharedlib/middleware"
+	middleware "10.1.20.130/dropping/sharedlib/middleware"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog"

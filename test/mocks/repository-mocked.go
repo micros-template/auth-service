@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/dropboks/sharedlib/model"
+	"10.1.20.130/dropping/sharedlib/model"
 	m "github.com/stretchr/testify/mock"
 )
 

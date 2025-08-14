@@ -3,7 +3,7 @@ package generators
 import (
 	"crypto/rand"
 
-	_utils "github.com/dropboks/sharedlib/utils"
+	_utils "10.1.20.130/dropping/sharedlib/utils"
 	"github.com/google/uuid"
 )
 
