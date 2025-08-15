@@ -1,0 +1,74 @@
+database:
+  host: "localhost"
+  user: "daffaputra"
+  password: "password"
+  port: "5433"
+  name: "dropboks"
+  sslmode: "disable"
+
+app:
+  name: "dropboks"
+  url: "http://localhost:8081"
+  http:
+    port: 8081
+  grpc:
+    service:
+      user_service: 127.0.0.1:50051
+      file_service: 127.0.0.1:50052
+  verification_url: "verify-email?"
+  changepassword_url: "change-password?"
+
+redis:
+  address: "localhost"
+  port: "6379"
+  client_name: "auth_service"
+  password: "this_is_password"
+
+nats:
+  protocol: "nats"
+  address: "localhost"
+  port: "4221"
+  credential:
+    user: "mq_user"
+    password: "strong_password123"
+  connection_name: "authentication_service_conn"
+  timeout: 10
+
+jetstream:
+  notification:
+    stream:
+      name: "notification_stream"
+      description: "this is notification stream"
+    subject:
+      global: "notification.>"
+      mail: "notification.email"
+  event:
+    stream:
+      name: "eventbus_stream"
+      description: "this is event bus stream"
+    consumer:
+      user_event:
+        name: "auth-user_consumer"
+        subject: "eventbus.user.*"
+    subject:
+      global: "eventbus.>"
+      event_bus: "eventbus"
+  log:
+    stream:
+      name: "log_stream"
+      description: "this is log stream"
+    subject:
+      global: "log.>"
+      prefix: "log"
+
+server:
+  cors:
+    allow_origins: "*"
+    allow_methods: "GET, POST, PUT, DELETE, OPTIONS, PATCH"
+    allow_headers: "Content-Type, Authorization, X-Requested-With, X-CSRF-Token, Accept, Origin, Cache-Control, X-File-Name, X-File-Type, X-File-Size"
+    expose_headers: "Content-Length, Content-Range"
+    max_age: 86400
+    allow_credential: true
+
+jwt:
+  secret_key: "THIS_IS_SECRET!!!"
