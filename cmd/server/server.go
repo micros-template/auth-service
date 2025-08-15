@@ -79,6 +79,9 @@ func (s *Server) Run(ctx context.Context) {
 					conn, err := net.DialTimeout("tcp", s.Address, 100*time.Millisecond)
 					if err == nil {
 						if err := conn.Close(); err != nil {
+							if err := logEmitter.EmitLog("ERR", fmt.Sprintf("establish check connection failed to close:%v", err)); err != nil {
+								logger.Error().Err(err).Msg("failed to emit log")
+							}
 							logger.Fatal().Err(err).Msg("establish check connection failed to close")
 						}
 						s.ServerReady <- true

@@ -609,17 +609,33 @@ func (a *authService) RegisterService(req dto.RegisterRequest) error {
 	verificationToken, err := a.g.GenerateToken()
 	if err != nil {
 		go func() {
-			if err := a.logEmitter.EmitLog("ERR", fmt.Sprintf("error generate verification token. Err:%v", err.Error())); err != nil {
+			if err := a.logEmitter.EmitLog("ERR", fmt.Sprintf("error generate verification token. Err: %v", err.Error())); err != nil {
 				a.logger.Error().Err(err).Msg("failed to emit log")
 			}
 		}()
-		// remove user?
+		go func() {
+			if _, err := a.userServiceClient.DeleteUser(context.Background(), &upb.UserId{
+				UserId: userId,
+			}); err != nil {
+				if err := a.logEmitter.EmitLog("ERR", fmt.Sprintf("failed to delete user Err: %v", err.Error())); err != nil {
+					a.logger.Error().Err(err).Msg("failed to emit log")
+				}
+			}
+		}()
 		return dto.Err_INTERNAL_GENERATE_TOKEN
 	}
 
 	key := fmt.Sprintf("verificationToken:%s", userId)
 	if err := a.authRepository.SetResource(ctx, key, verificationToken, 30*time.Minute); err != nil {
-		// remove user?
+		go func() {
+			if _, err := a.userServiceClient.DeleteUser(context.Background(), &upb.UserId{
+				UserId: userId,
+			}); err != nil {
+				if err := a.logEmitter.EmitLog("ERR", fmt.Sprintf("failed to delete user Err: %v", err.Error())); err != nil {
+					a.logger.Error().Err(err).Msg("failed to emit log")
+				}
+			}
+		}()
 		return err
 	}
 	link := fmt.Sprintf("%s/%suserid=%s&token=%s", viper.GetString("app.url"), viper.GetString("app.verification_url"), userId, verificationToken)
@@ -636,7 +652,15 @@ func (a *authService) RegisterService(req dto.RegisterRequest) error {
 				a.logger.Error().Err(err).Msg("failed to emit log")
 			}
 		}()
-		// remove user?
+		go func() {
+			if _, err := a.userServiceClient.DeleteUser(context.Background(), &upb.UserId{
+				UserId: userId,
+			}); err != nil {
+				if err := a.logEmitter.EmitLog("ERR", fmt.Sprintf("failed to delete user Err: %v", err.Error())); err != nil {
+					a.logger.Error().Err(err).Msg("failed to emit log")
+				}
+			}
+		}()
 		return err
 	}
 	if _, err = a.js.Publish(ctx, subject, []byte(marshalledMsg)); err != nil {
@@ -652,7 +676,15 @@ func (a *authService) RegisterService(req dto.RegisterRequest) error {
 				}
 			}()
 		}
-		// remove the user?
+		go func() {
+			if _, err := a.userServiceClient.DeleteUser(context.Background(), &upb.UserId{
+				UserId: userId,
+			}); err != nil {
+				if err := a.logEmitter.EmitLog("ERR", fmt.Sprintf("failed to delete user Err: %v", err.Error())); err != nil {
+					a.logger.Error().Err(err).Msg("failed to emit log")
+				}
+			}
+		}()
 		return err
 	}
 	return nil
