@@ -1,19 +1,19 @@
-module 10.1.20.130/dropping/auth-service
+module github.com/micros-template/auth-service
 
 go 1.24.2
 
 require (
-	10.1.20.130/dropping/event-bus-client v0.0.0-20250813095137-aac18622526d
-	10.1.20.130/dropping/log-management v0.0.0-20250808075433-1d4dd15b3fc7
-	10.1.20.130/dropping/proto-file v0.0.0-20250714044208-bb76fb12882b
-	10.1.20.130/dropping/proto-user v0.0.0-20250813092555-cb617340c1c5
-	10.1.20.130/dropping/sharedlib v0.0.0-20250807080415-3baef044f7f4
 	github.com/Masterminds/squirrel v1.5.4
 	github.com/gin-contrib/cors v1.7.6
 	github.com/gin-gonic/gin v1.10.1
 	github.com/golang-jwt/jwt/v5 v5.3.0
 	github.com/google/uuid v1.6.0
 	github.com/jackc/pgx/v5 v5.7.5
+	github.com/micros-template/event-bus-client v0.0.0-20250815061817-3640b0dc9d15
+	github.com/micros-template/log-service v0.0.0-20250815060440-0eeadb0e7915
+	github.com/micros-template/proto-file v0.0.0-20250815041853-9a4524661ec0
+	github.com/micros-template/proto-user v0.0.0-20250815042006-b2e8221cc2f5
+	github.com/micros-template/sharedlib v0.0.0-20250815061634-c3c69004cabb
 	github.com/nats-io/nats.go v1.44.0
 	github.com/pashagolub/pgxmock/v4 v4.8.0
 	github.com/redis/go-redis/v9 v9.12.1
@@ -29,7 +29,6 @@ require (
 )
 
 require (
-	10.1.20.130/dropping/proto-event v0.0.0-20250714041729-deef4f93d371 // indirect
 	dario.cat/mergo v1.0.2 // indirect
 	github.com/Azure/go-ansiterm v0.0.0-20250102033503-faa5f7b0171c // indirect
 	github.com/KyleBanks/depth v1.2.1 // indirect
@@ -48,9 +47,8 @@ require (
 	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
 	github.com/distribution/reference v0.6.0 // indirect
 	github.com/docker/docker v28.3.3+incompatible // indirect
-	github.com/docker/go-connections v0.5.0 // indirect
+	github.com/docker/go-connections v0.6.0 // indirect
 	github.com/docker/go-units v0.5.0 // indirect
-	github.com/dropboks/sharedlib v0.0.0-20250711072608-b2ae226cfddf // indirect
 	github.com/ebitengine/purego v0.8.4 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/fsnotify/fsnotify v1.9.0 // indirect
@@ -84,6 +82,7 @@ require (
 	github.com/mailru/easyjson v0.9.0 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-isatty v0.0.20 // indirect
+	github.com/micros-template/proto-event v0.0.0-20250815041636-e912fe3a7c57 // indirect
 	github.com/moby/docker-image-spec v1.3.1 // indirect
 	github.com/moby/go-archive v0.1.0 // indirect
 	github.com/moby/patternmatcher v0.6.0 // indirect

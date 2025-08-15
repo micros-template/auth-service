@@ -4,8 +4,8 @@ import (
 	"testing"
 	"time"
 
-	"10.1.20.130/dropping/auth-service/internal/domain/service"
-	"10.1.20.130/dropping/auth-service/test/mocks"
+	"github.com/micros-template/auth-service/internal/domain/service"
+	"github.com/micros-template/auth-service/test/mocks"
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"

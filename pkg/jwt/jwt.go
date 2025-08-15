@@ -3,9 +3,9 @@ package jwt
 import (
 	"time"
 
-	"10.1.20.130/dropping/auth-service/internal/domain/dto"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
+	"github.com/micros-template/auth-service/internal/domain/dto"
 	"github.com/spf13/viper"
 )
 

@@ -3,8 +3,8 @@ package generators
 import (
 	"crypto/rand"
 
-	_utils "10.1.20.130/dropping/sharedlib/utils"
 	"github.com/google/uuid"
+	_utils "github.com/micros-template/sharedlib/utils"
 )
 
 type (

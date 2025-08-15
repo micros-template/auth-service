@@ -3,8 +3,8 @@ package handler
 import (
 	"net/http"
 
-	"10.1.20.130/dropping/auth-service/docs"
 	"github.com/gin-gonic/gin"
+	"github.com/micros-template/auth-service/docs"
 	swaggerfiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
 )

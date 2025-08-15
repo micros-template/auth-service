@@ -11,8 +11,8 @@ import (
 	"testing"
 	"time"
 
-	"10.1.20.130/dropping/auth-service/test/helper"
-	_helper "10.1.20.130/dropping/sharedlib/test/helper"
+	"github.com/micros-template/auth-service/test/helper"
+	_helper "github.com/micros-template/sharedlib/test/helper"
 	"github.com/spf13/viper"
 
 	"github.com/gin-gonic/gin"

@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"10.1.20.130/dropping/sharedlib/model"
+	"github.com/micros-template/sharedlib/model"
 	m "github.com/stretchr/testify/mock"
 )
 

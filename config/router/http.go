@@ -5,10 +5,10 @@ import (
 	"strings"
 	"time"
 
-	"10.1.20.130/dropping/log-management/pkg"
-	middleware "10.1.20.130/dropping/sharedlib/middleware"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"github.com/micros-template/log-service/pkg"
+	middleware "github.com/micros-template/sharedlib/middleware"
 	"github.com/rs/zerolog"
 	"github.com/spf13/viper"
 )

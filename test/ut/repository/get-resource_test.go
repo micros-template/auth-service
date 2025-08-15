@@ -5,8 +5,8 @@ import (
 	"testing"
 	"time"
 
-	"10.1.20.130/dropping/auth-service/internal/domain/repository"
-	"10.1.20.130/dropping/auth-service/test/mocks"
+	"github.com/micros-template/auth-service/internal/domain/repository"
+	"github.com/micros-template/auth-service/test/mocks"
 	"github.com/pashagolub/pgxmock/v4"
 	"github.com/redis/go-redis/v9"
 	"github.com/rs/zerolog"

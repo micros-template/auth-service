@@ -1,9 +1,9 @@
 package messagequeue
 
 import (
-	event "10.1.20.130/dropping/event-bus-client/pkg/event/user"
-	"10.1.20.130/dropping/log-management/pkg"
 	"github.com/jackc/pgx/v5/pgxpool"
+	event "github.com/micros-template/event-bus-client/pkg/event/user"
+	"github.com/micros-template/log-service/pkg"
 	"github.com/nats-io/nats.go/jetstream"
 	"github.com/rs/zerolog"
 	"github.com/spf13/viper"

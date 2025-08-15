@@ -1,5 +1,14 @@
 # Authentication Service
 
+## ⚠️ Caution: Rename Module and References
+
+Before using this template, make sure to:
+
+1. **Rename the Go module** in `go.mod` to your own module path.
+2. **Replace all occurrences** of `micros-template` and related words throughout the project with your own naming.
+
+This ensures your project is uniquely identified and avoids conflicts with the template source.
+
 ## Set up pre-commit
 
 Plese setup pre-commit before start to code
@@ -8,18 +17,3 @@ Plese setup pre-commit before start to code
 make pre-commit-preparation
 ```
 
-## Set up ENV
-
-```bash
-go env -w GOPRIVATE="10.1.20.130/*"
-go env -w GOINSECURE="10.1.20.130/*"
-git config --global url."10.1.20.130".insteadOf https://10.1.20.130/
-```
-
-## Insecure Registry
-
-```bash
-{
-  "insecure-registries": ["10.1.20.130:5001"]
-}
-```

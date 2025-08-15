@@ -6,13 +6,13 @@ import (
 	"fmt"
 	"time"
 
-	"10.1.20.130/dropping/auth-service/internal/domain/dto"
-	"10.1.20.130/dropping/auth-service/internal/infrastructure/cache"
-	"10.1.20.130/dropping/auth-service/internal/infrastructure/db"
-	"10.1.20.130/dropping/auth-service/internal/infrastructure/logger"
-	"10.1.20.130/dropping/sharedlib/model"
 	sq "github.com/Masterminds/squirrel"
 	"github.com/jackc/pgx/v5"
+	"github.com/micros-template/auth-service/internal/domain/dto"
+	"github.com/micros-template/auth-service/internal/infrastructure/cache"
+	"github.com/micros-template/auth-service/internal/infrastructure/db"
+	"github.com/micros-template/auth-service/internal/infrastructure/logger"
+	"github.com/micros-template/sharedlib/model"
 	"github.com/redis/go-redis/v9"
 	"github.com/rs/zerolog"
 )

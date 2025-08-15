@@ -3,8 +3,8 @@ package mocks
 import (
 	"context"
 
-	fpb "10.1.20.130/dropping/proto-file/pkg/fpb"
-	upb "10.1.20.130/dropping/proto-user/pkg/upb"
+	fpb "github.com/micros-template/proto-file/pkg/fpb"
+	upb "github.com/micros-template/proto-user/pkg/upb"
 	m "github.com/stretchr/testify/mock"
 	"google.golang.org/grpc"
 )

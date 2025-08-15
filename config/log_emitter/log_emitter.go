@@ -1,7 +1,7 @@
 package logemitter
 
 import (
-	"10.1.20.130/dropping/log-management/pkg"
+	"github.com/micros-template/log-service/pkg"
 	"github.com/nats-io/nats.go/jetstream"
 	"github.com/rs/zerolog"
 	"github.com/spf13/viper"
