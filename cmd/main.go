@@ -20,6 +20,8 @@ package main
 
 import (
 	"context"
+	"io"
+	"log"
 	"os"
 	"os/signal"
 	"syscall"
@@ -30,6 +32,7 @@ import (
 )
 
 func main() {
+	log.SetOutput(io.Discard)
 	container := bootstrap.Run()
 
 	ctx, cancel := context.WithCancel(context.Background())

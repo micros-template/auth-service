@@ -63,7 +63,7 @@ func (a *authRepository) GetUserByEmail(email string) (*model.User, error) {
 	if err != nil {
 		if errors.Is(err, pgx.ErrNoRows) {
 			go func() {
-				if err := a.logEmitter.EmitLog("WARN", fmt.Sprintf("%s user_id: %s", dto.Err_NOTFOUND_USER_NOT_FOUND.Error(), user.ID)); err != nil {
+				if err := a.logEmitter.EmitLog("WARN", fmt.Sprintf("%s email: %s", dto.Err_NOTFOUND_USER_NOT_FOUND.Error(), email)); err != nil {
 					a.logger.Error().Err(err).Msg("failed to emit log")
 				}
 			}()

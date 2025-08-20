@@ -8,9 +8,9 @@ database:
 
 app:
   name: "dropboks"
-  url: "http://10.1.20.130:81/api/v1"
+  url: "https://localhost/api/v1"
   http:
-    port: 80
+    port: 443
   grpc:
     service:
       user_service: user_service:50051
