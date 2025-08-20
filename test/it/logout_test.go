@@ -24,16 +24,16 @@ type LogoutITSuite struct {
 
 	network                      *testcontainers.DockerNetwork
 	gatewayContainer             *_helper.GatewayContainer
-	userPgContainer              *_helper.PostgresContainer
-	authPgContainer              *_helper.PostgresContainer
-	redisContainer               *_helper.RedisContainer
-	minioContainer               *_helper.MinioContainer
-	natsContainer                *_helper.NatsContainer
+	userPgContainer              *_helper.SQLContainer
+	authPgContainer              *_helper.SQLContainer
+	redisContainer               *_helper.CacheContainer
+	minioContainer               *_helper.StorageContainer
+	natsContainer                *_helper.MessageQueueContainer
 	authContainer                *_helper.AuthServiceContainer
 	userServiceContainer         *_helper.UserServiceContainer
 	fileServiceContainer         *_helper.FileServiceContainer
 	notificationServiceContainer *_helper.NotificationServiceContainer
-	mailHogContainer             *_helper.MailhogContainer
+	mailHogContainer             *_helper.MailContainer
 }
 
 func (l *LogoutITSuite) SetupSuite() {
@@ -52,75 +52,186 @@ func (l *LogoutITSuite) SetupSuite() {
 	l.network = _helper.StartNetwork(l.ctx)
 
 	// spawn user db
-	userPgContainer, err := _helper.StartPostgresContainer(l.ctx, l.network.Name, "test_user_db", viper.GetString("container.postgresql_version"))
+	userPgContainer, err := _helper.StartSQLContainer(_helper.SQLParameterOption{
+		Context:                 l.ctx,
+		SharedNetwork:           l.network.Name,
+		ImageName:               viper.GetString("container.postgresql_image"),
+		ContainerName:           "test_user_db",
+		SQLInitScriptPath:       viper.GetString("script.init_sql"),
+		SQLInitInsideScriptPath: "/docker-entrypoint-initdb.d/init-db.sql",
+		WaitingSignal:           "database system is ready to accept connections",
+		Env: map[string]string{
+			"POSTGRES_DB":       viper.GetString("database.name"),
+			"POSTGRES_USER":     viper.GetString("database.user"),
+			"POSTGRES_PASSWORD": viper.GetString("database.password"),
+		},
+	})
 	if err != nil {
 		log.Fatalf("failed starting postgres container: %s", err)
 	}
 	l.userPgContainer = userPgContainer
 
 	// spawn auth db
-	authPgContainer, err := _helper.StartPostgresContainer(l.ctx, l.network.Name, "test_auth_db", viper.GetString("container.postgresql_version"))
+	authPgContainer, err := _helper.StartSQLContainer(_helper.SQLParameterOption{
+		Context:                 l.ctx,
+		SharedNetwork:           l.network.Name,
+		ImageName:               viper.GetString("container.postgresql_image"),
+		ContainerName:           "test_auth_db",
+		SQLInitScriptPath:       viper.GetString("script.init_sql"),
+		SQLInitInsideScriptPath: "/docker-entrypoint-initdb.d/init-db.sql",
+		WaitingSignal:           "database system is ready to accept connections",
+		Env: map[string]string{
+			"POSTGRES_DB":       viper.GetString("database.name"),
+			"POSTGRES_USER":     viper.GetString("database.user"),
+			"POSTGRES_PASSWORD": viper.GetString("database.password"),
+		},
+	})
 	if err != nil {
 		log.Fatalf("failed starting postgres container: %s", err)
 	}
 	l.authPgContainer = authPgContainer
 
 	// spawn redis
-	rContainer, err := _helper.StartRedisContainer(l.ctx, l.network.Name, viper.GetString("container.redis_version"))
+	rContainer, err := _helper.StartCacheContainer(_helper.CacheParameterOption{
+		Context:       l.ctx,
+		SharedNetwork: l.network.Name,
+		ImageName:     viper.GetString("container.redis_image"),
+		ContainerName: "test_redis",
+		WaitingSignal: "6379/tcp",
+		Cmd:           []string{"redis-server", "--requirepass", viper.GetString("redis.password")},
+		Env: map[string]string{
+			"REDIS_PASSWORD": viper.GetString("redis.password"),
+		},
+	})
 	if err != nil {
 		log.Fatalf("failed starting redis container: %s", err)
 	}
 	l.redisContainer = rContainer
 
-	mContainer, err := _helper.StartMinioContainer(l.ctx, l.network.Name, viper.GetString("container.minio_version"))
+	mContainer, err := _helper.StartStorageContainer(_helper.StorageParameterOption{
+		Context:       l.ctx,
+		SharedNetwork: l.network.Name,
+		ImageName:     viper.GetString("container.minio_image"),
+		ContainerName: "test-minio",
+		WaitingSignal: "API:",
+		Cmd:           []string{"server", "/data"},
+		Env: map[string]string{
+			"MINIO_ROOT_USER":     viper.GetString("minio.credential.user"),
+			"MINIO_ROOT_PASSWORD": viper.GetString("minio.credential.password"),
+		},
+	})
 	if err != nil {
 		log.Fatalf("failed starting minio container: %s", err)
 	}
 	l.minioContainer = mContainer
 
 	// spawn nats
-	nContainer, err := _helper.StartNatsContainer(l.ctx, l.network.Name, viper.GetString("container.nats_version"))
+	nContainer, err := _helper.StartMessageQueueContainer(_helper.MessageQueueParameterOption{
+		Context:            l.ctx,
+		SharedNetwork:      l.network.Name,
+		ImageName:          viper.GetString("container.nats_image"),
+		ContainerName:      "test_nats",
+		MQConfigPath:       viper.GetString("script.nats_server"),
+		MQInsideConfigPath: "/etc/nats/nats.conf",
+		WaitingSignal:      "Server is ready",
+		MappedPort:         []string{"4221:4221/tcp"},
+		Cmd: []string{
+			"-c", "/etc/nats/nats.conf",
+			"--name", "nats",
+			"-p", "4221",
+		},
+		Env: map[string]string{
+			"NATS_USER":     viper.GetString("nats.credential.user"),
+			"NATS_PASSWORD": viper.GetString("nats.credential.password"),
+		},
+	})
 	if err != nil {
 		log.Fatalf("failed starting minio container: %s", err)
 	}
 	l.natsContainer = nContainer
 
-	aContainer, err := _helper.StartAuthServiceContainer(l.ctx, l.network.Name, viper.GetString("container.auth_service_version"))
+	aContainer, err := _helper.StartAuthServiceContainer(_helper.AuthServiceParameterOption{
+		Context:       l.ctx,
+		SharedNetwork: l.network.Name,
+		ImageName:     viper.GetString("container.auth_service_image"),
+		ContainerName: "test_auth_service",
+		WaitingSignal: "HTTP Server Starting in port",
+		Cmd:           []string{"/auth_service"},
+		Env:           map[string]string{"ENV": "test"},
+	})
 	if err != nil {
-		log.Println("make sure the image is exist")
 		log.Fatalf("failed starting auth service container: %s", err)
 	}
 	l.authContainer = aContainer
 
-	fContainer, err := _helper.StartFileServiceContainer(l.ctx, l.network.Name, viper.GetString("container.file_service_version"))
+	fContainer, err := _helper.StartFileServiceContainer(_helper.FileServiceParameterOption{
+		Context:       l.ctx,
+		SharedNetwork: l.network.Name,
+		ImageName:     viper.GetString("container.file_service_image"),
+		ContainerName: "test_file_service",
+		WaitingSignal: "gRPC server running in port",
+		Cmd:           []string{"/file_service"},
+		Env:           map[string]string{"ENV": "test"},
+	})
 	if err != nil {
-		log.Println("make sure the image is exist")
 		log.Fatalf("failed starting file service container: %s", err)
 	}
 	l.fileServiceContainer = fContainer
 
 	// spawn user service
-	uContainer, err := _helper.StartUserServiceContainer(l.ctx, l.network.Name, viper.GetString("container.user_service_version"))
+	uContainer, err := _helper.StartUserServiceContainer(_helper.UserServiceParameterOption{
+		Context:       l.ctx,
+		SharedNetwork: l.network.Name,
+		ImageName:     viper.GetString("container.user_service_image"),
+		ContainerName: "test_user_service",
+		WaitingSignal: "gRPC server running in port",
+		Cmd:           []string{"/user_service"},
+		Env:           map[string]string{"ENV": "test"},
+	})
 	if err != nil {
-		log.Println("make sure the image is exist")
 		log.Fatalf("failed starting user service container: %s", err)
 	}
 	l.userServiceContainer = uContainer
 
-	noContainer, err := _helper.StartNotificationServiceContainer(l.ctx, l.network.Name, viper.GetString("container.notification_service_version"))
+	noContainer, err := _helper.StartNotificationServiceContainer(_helper.NotificationServiceParameterOption{
+		Context:       l.ctx,
+		SharedNetwork: l.network.Name,
+		ImageName:     viper.GetString("container.notification_service_image"),
+		ContainerName: "test_notification_service",
+		WaitingSignal: "subscriber for notification is running",
+		Cmd:           []string{"/notification_service"},
+		Env:           map[string]string{"ENV": "test"},
+	})
 	if err != nil {
-		log.Println("make sure the image is exist")
 		log.Fatalf("failed starting notification service container: %s", err)
 	}
 	l.notificationServiceContainer = noContainer
 
-	mailContainer, err := _helper.StartMailhogContainer(l.ctx, l.network.Name, viper.GetString("container.mailhog_version"))
+	mailContainer, err := _helper.StartMailContainer(_helper.MailParameterOption{
+		Context:       l.ctx,
+		SharedNetwork: l.network.Name,
+		ImageName:     viper.GetString("container.mailhog_image"),
+		ContainerName: "mailhog",
+		WaitingSignal: "1025/tcp",
+		MappedPort:    []string{"1025:1025/tcp", "8025:8025/tcp"},
+	})
 	if err != nil {
 		log.Fatalf("failed starting mailhog container: %s", err)
 	}
 	l.mailHogContainer = mailContainer
 
-	gatewayContainer, err := _helper.StartGatewayContainer(l.ctx, l.network.Name, viper.GetString("container.gateway_version"))
+	gatewayContainer, err := _helper.StartGatewayContainer(_helper.GatewayParameterOption{
+		Context:                   l.ctx,
+		SharedNetwork:             l.network.Name,
+		ImageName:                 viper.GetString("container.gateway_image"),
+		ContainerName:             "test_gateway",
+		NginxConfigPath:           viper.GetString("script.nginx"),
+		NginxInsideConfigPath:     "/etc/nginx/conf.d/default.conf",
+		GrpcErrorConfigPath:       viper.GetString("script.grpc_error"),
+		GrpcErrorInsideConfigPath: "/etc/nginx/conf.d/errors.grpc_conf",
+		WaitingSignal:             "Configuration complete; ready for start up",
+		MappedPort:                []string{"9090:80/tcp", "50051:50051/tcp"},
+	})
 	if err != nil {
 		log.Fatalf("failed starting gateway container: %s", err)
 	}

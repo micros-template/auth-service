@@ -80,16 +80,16 @@ jwt:
   secret_key: "jwt_secret_test"
 
 container:
-  auth_service_version: "test"
-  file_service_version: "latest"
-  user_service_version: "latest"
-  notification_service_version: "latest"
-  gateway_version: "1.28.0-alpine-slim"
-  nats_version: "2.11.6"
-  minio_version: "RELEASE.2025-05-24T17-08-30Z-cpuv1"
-  mailhog_version: "v1.0.1"
-  postgresql_version: "17.5-alpine3.22"
-  redis_version: "7.2"
+  auth_service_image: "docker-registry.anandadf.my.id/micros-template/auth_service:test"
+  file_service_image: "docker-registry.anandadf.my.id/micros-template/file_service:latest"
+  user_service_image: "docker-registry.anandadf.my.id/micros-template/user_service:latest"
+  notification_service_image: "docker-registry.anandadf.my.id/micros-template/notification_service:latest"
+  gateway_image: "nginx:1.28.0-alpine-slim"
+  nats_image: "nats:2.11.6"
+  minio_image: "minio/minio:RELEASE.2025-05-24T17-08-30Z-cpuv1"
+  mailhog_image: "mailhog/mailhog:v1.0.1"
+  postgresql_image: "postgres:17.5-alpine3.22"
+  redis_image: "redis:7.2"
 
 script:
   nats_server: "../mocks/nats/nats-server.conf"

@@ -10,10 +10,10 @@ require (
 	github.com/google/uuid v1.6.0
 	github.com/jackc/pgx/v5 v5.7.5
 	github.com/micros-template/event-bus-client v0.0.0-20250815061817-3640b0dc9d15
-	github.com/micros-template/log-service v0.0.0-20250815060440-0eeadb0e7915
+	github.com/micros-template/log-service v0.0.0-20250819061849-1b9db876959f
 	github.com/micros-template/proto-file v0.0.0-20250815041853-9a4524661ec0
 	github.com/micros-template/proto-user v0.0.0-20250815042006-b2e8221cc2f5
-	github.com/micros-template/sharedlib v0.0.0-20250815061634-c3c69004cabb
+	github.com/micros-template/sharedlib v0.0.0-20250819040947-431fcfd155fd
 	github.com/nats-io/nats.go v1.44.0
 	github.com/pashagolub/pgxmock/v4 v4.8.0
 	github.com/redis/go-redis/v9 v9.12.1
@@ -25,7 +25,7 @@ require (
 	github.com/swaggo/swag v1.16.6
 	github.com/testcontainers/testcontainers-go v0.38.0
 	go.uber.org/dig v1.19.0
-	google.golang.org/grpc v1.74.2
+	google.golang.org/grpc v1.75.0
 )
 
 require (
@@ -128,7 +128,7 @@ require (
 	golang.org/x/sys v0.35.0 // indirect
 	golang.org/x/text v0.28.0 // indirect
 	golang.org/x/tools v0.36.0 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20250811230008-5f3141c8851a // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20250818200422-3122310a409c // indirect
 	google.golang.org/protobuf v1.36.7 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

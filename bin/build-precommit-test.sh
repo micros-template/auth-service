@@ -3,6 +3,7 @@
 mkdir -p ./bin/dist
 
 service_name="auth_service"
+prefix_image="docker-registry.anandadf.my.id/micros-template/"
 
 CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags "-s -w" -o "./bin/dist/$service_name" ./cmd
 wait
@@ -15,7 +16,7 @@ fi
 upx --best --lzma ./bin/dist/$service_name
 wait
 
-echo "Building Docker image for $service_name:test" >/dev/stderr
-docker build -t "10.1.20.130:5001/dropping/auth-service:test" --build-arg BIN_NAME=$service_name -f Dockerfile .
+echo "Building Docker image for $prefix_image$service_name:test" >/dev/stderr
+docker build -t "$prefix_image$service_name:test" --build-arg BIN_NAME=$service_name -f Dockerfile .
 
 rm -rf ./bin/dist
