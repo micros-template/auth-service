@@ -1,6 +1,6 @@
 database:
   host: "auth_db"
-  user: "daffaputra"
+  user: "myusername"
   password: "password"
   port: "5432"
   name: "dropboks"

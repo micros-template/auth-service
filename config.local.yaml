@@ -1,6 +1,6 @@
 database:
   host: "localhost"
-  user: "daffaputra"
+  user: "myusername"
   password: "password"
   port: "5433"
   name: "dropboks"
