@@ -596,13 +596,15 @@ func (a *authService) RegisterService(req dto.RegisterRequest) error {
 		TwoFactorEnabled: false,
 	}
 	_, err = a.userServiceClient.CreateUser(ctx, user)
-	if err != nil && req.Image != nil && req.Image.Filename != "" {
-		if _, err := a.fileServiceClient.RemoveProfileImage(ctx, &fpb.ImageName{Name: *imageName}); err != nil {
-			go func() {
-				if err := a.logEmitter.EmitLog("ERR", fmt.Sprintf("Error remove image via file service. err: %v", err.Error())); err != nil {
-					a.logger.Error().Err(err).Msg("failed to emit log")
-				}
-			}()
+	if err != nil {
+		if req.Image != nil && req.Image.Filename != "" {
+			if _, err := a.fileServiceClient.RemoveProfileImage(ctx, &fpb.ImageName{Name: *imageName}); err != nil {
+				go func() {
+					if err := a.logEmitter.EmitLog("ERR", fmt.Sprintf("Error remove image via file service. err: %v", err.Error())); err != nil {
+						a.logger.Error().Err(err).Msg("failed to emit log")
+					}
+				}()
+			}
 		}
 		return err
 	}
